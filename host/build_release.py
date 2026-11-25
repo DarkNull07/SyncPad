@@ -52,7 +52,7 @@ def main():
     for p in (OUT / "SyncPad.exe", OUT / "SyncPad.apk", z):
         if p.exists():
             sums.append(f"{hashlib.sha256(p.read_bytes()).hexdigest()}  {p.name}")
-    (OUT / "SHA256SUMS.txt").write_text("\n".join(sums) + "\n", "utf-8")
+    (OUT / "SHA256SUMS.txt").write_text("\n".join(sums) + "\n", "utf-8", newline=chr(10))
     print("\n".join(sums))
 
 
