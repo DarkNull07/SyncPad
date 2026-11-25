@@ -85,6 +85,15 @@ first; without it those tests are skipped. The APK is signed with the building m
 
 Website: `web/`, static files with no build step.
 
+### Releases
+
+`tools/release.py` keeps one version number in both apps, [CHANGELOG.md](CHANGELOG.md) and the website. It runs every test, builds and signs both downloads, checks them for private text and commits. Publishing is a separate step.
+
+```
+host\.venv\Scripts\python tools\release.py 0.2.1 "What changed"
+host\.venv\Scripts\python tools\release.py 0.2.1 --publish
+```
+
 ## Licence
 
 MIT, see `LICENSE`. Third-party software is listed in `THIRD_PARTY.md`. The website's font is Hanken Grotesk (SIL Open Font License 1.1).

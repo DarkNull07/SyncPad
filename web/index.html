@@ -24,6 +24,7 @@
   <a class="brand" href="#top"><svg viewBox="0 0 32 32" aria-hidden="true"><rect x="8.5" y="3.5" width="15" height="25" rx="4.5"/><circle cx="16" cy="12" r="2.6"/></svg>SyncPad</a>
   <a class="opt" href="#connect">Connections</a>
   <a class="opt" href="#does">Features</a>
+  <a class="opt" href="#deck">Deck</a>
   <a class="opt" href="#safe">Security</a>
   <a class="hub" href="https://github.com/DarkNull07/SyncPad">GitHub<span class="stars-n" hidden></span></a>
   <a class="go" href="#download">Download</a>
@@ -33,12 +34,14 @@
 
 <section class="hero">
   <div class="say">
-    <h1>Your phone is the trackpad.</h1>
-    <p class="lead">SyncPad puts a precise trackpad, a full keyboard, an air mouse and your laptop's files in your hand. For Android and Windows, free and open source.</p>
-    <p class="acts">
-      <a class="btn main" data-dl="windows" href="/download/windows">Get it for Windows</a>
-      <a class="btn" data-dl="android" href="/download/android">Get it for Android</a>
-    </p>
+    <h1><span class="ln"><i>Your phone</i></span> <span class="ln"><i>is the trackpad.</i></span></h1>
+    <div class="row">
+      <p class="lead">A precise trackpad, a full keyboard, an air mouse and your laptop's files, in your hand. For Android and Windows, free and open source.</p>
+      <p class="acts">
+        <a class="btn main" data-dl="windows" href="/download/windows">Get it for Windows</a>
+        <a class="btn" data-dl="android" href="/download/android">Get it for Android</a>
+      </p>
+    </div>
   </div>
 
   <div class="stage" role="img" aria-label="A phone controlling a laptop. Dragging on the phone moves the cursor on the laptop, and tapping picks up the sun.">
@@ -73,13 +76,14 @@
 <section class="connect" id="connect">
   <div class="pin">
     <header><h2>Three ways in. Switch whenever.</h2></header>
+    <div class="word" aria-hidden="true"><span>USB</span><span>Wi-Fi</span><span>Bluetooth</span></div>
     <canvas class="wire" aria-hidden="true"></canvas>
     <ol class="modes">
       <li class="on"><h3>USB</h3><p>The smooth one. About 2 ms to the laptop, on any network or none.</p></li>
       <li><h3>Wi-Fi</h3><p>No cable, every feature. It finds your laptop and comes back by itself.</p></li>
       <li><h3>Bluetooth</h3><p>A real mouse, keyboard and game controller. Nothing to install on the computer.</p></li>
     </ol>
-    <p class="fine">Delay shown by the app on a realme P3 5G with a Windows 11 laptop. Yours depends on your hardware and network.</p>
+    <p class="fine">Delay as shown by the app on a tested phone. Yours depends on your hardware and network.</p>
   </div>
 </section>
 
@@ -94,7 +98,11 @@
       <img data-i="4" src="/img/share.webp" width="540" height="1110" alt="Sending files with progress" loading="lazy">
       <img data-i="5" class="wide" src="/img/gamepad.webp" width="1110" height="526" alt="The game controller" loading="lazy">
       <span class="dots"><i></i><i></i><i></i></span>
-    </div></div>
+    </div>
+      <div class="fx caps" data-f="1" aria-hidden="true"><b>Win</b><b>Shift</b><b>S</b></div>
+      <div class="fx pics" data-f="3" aria-hidden="true"><i></i><i></i></div>
+      <div class="fx send" data-f="4" aria-hidden="true"><span>trail-run-final.mp4</span><u><i></i></u></div>
+    </div>
     <div class="steps">
       <article><h3>A trackpad that feels like one</h3><p>Slow fingers get precision, fast ones cross the screen. Two-finger scrolling with momentum, pinch, tap and drag, three and four finger swipes. A lost Wi-Fi packet never loses movement.</p></article>
       <article><h3>Shortcuts you record, not spell</h3><p>Press the keys on your laptop and they land on your phone as a deck key. Chain several to run in order. Or tap them together from a key grid.</p></article>
@@ -103,6 +111,21 @@
       <article><h3>Send things without thinking</h3><p>Share from any app, or drop files on the SyncPad window. You see the progress and speed, and you can cancel. The clipboard can follow you too.</p></article>
       <article><h3>Turn it sideways and play</h3><p>Over Bluetooth, Windows sees a real controller with no driver. Over USB and Wi-Fi it presses keyboard keys instead.</p></article>
     </div>
+  </div>
+</section>
+
+<section class="live" id="deck">
+  <div class="tell">
+    <h2 class="typed"><span>A deck you can press right now.</span></h2>
+    <p>On your phone these keys run shortcuts, open programs or type for you. Here they run this page.</p>
+  </div>
+  <div class="deck" role="group" aria-label="Deck keys that control this page">
+    <button type="button" data-k="colour" style="--t:#c8f250"><svg viewBox="0 0 24 24"><path d="M12 3a9 9 0 100 18c1.6 0 2-1 1.6-2.1-.5-1.4.2-2.9 1.9-2.9H18a3 3 0 003-3c0-5.5-4-10-9-10z"/><circle cx="7.5" cy="11" r="1.3"/><circle cx="11" cy="7.3" r="1.3"/><circle cx="15.8" cy="8.5" r="1.3"/></svg>Colour</button>
+    <button type="button" data-k="ripple" style="--t:#9db8ff"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="2.5"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="9.5"/></svg>Ripple</button>
+    <button type="button" data-k="shot" style="--t:#7fe0c3"><svg viewBox="0 0 24 24"><path d="M4 9V5h4M16 5h4v4M20 15v4h-4M8 19H4v-4"/></svg>Screenshot</button>
+    <button type="button" data-k="type" style="--t:#ffd27a"><svg viewBox="0 0 24 24"><path d="M5 6h14M12 6v13M9 19h6"/></svg>Type text</button>
+    <button type="button" data-k="copy" style="--t:#e3b7ff"><svg viewBox="0 0 24 24"><rect x="8" y="8" width="12" height="12" rx="2.5"/><path d="M16 8V5.5A1.5 1.5 0 0014.5 4h-9A1.5 1.5 0 004 5.5v9A1.5 1.5 0 005.5 16H8"/></svg>Copy link</button>
+    <button type="button" data-k="open" style="--t:#ff9e8a"><svg viewBox="0 0 24 24"><path d="M12 4v11M7 11l5 5 5-5M5 20h14"/></svg>Open</button>
   </div>
 </section>
 
@@ -143,19 +166,20 @@
     <article data-os="windows">
       <h3>Windows</h3>
       <p>Windows 10 or 11, 64-bit. One file, nothing to install.</p>
-      <a class="btn main" data-count="windows" href="/download/windows">Download .exe <span>26.6 MB</span></a>
+      <a class="btn main" data-count="windows" href="/download/windows">Download .exe <span data-rel="exe-size">26.6 MB</span></a>
       <details><summary>Windows says it protected my PC</summary><p>SyncPad is not signed with a paid certificate, so SmartScreen does not recognise it yet. If you downloaded it here and the checksum matches, choose More info, then Run anyway. You can also build it yourself.</p></details>
-      <button class="sum" type="button" data-sum="9c5e16d3994f016189d1ae245606fa863fb63bc7341a47da15c2ff6e842f794e"><span>SHA-256</span> <code>9c5e16d3994f…42f794e</code> <em>Copy</em></button>
+      <button class="sum" type="button" data-full="exe" data-sum="f84313e09b3528de5dbfa52660bec98326be24a75c1dbecaa80f9b4e856cb437"><span>SHA-256</span> <code data-rel="exe-sha">f84313e09b35…56cb437</code> <em>Copy</em></button>
     </article>
     <article data-os="android">
       <h3>Android</h3>
       <p>Android 9 or newer. An APK, outside the Play Store.</p>
-      <a class="btn main" data-count="android" href="/download/android">Download .apk <span>2.9 MB</span></a>
+      <a class="btn main" data-count="android" href="/download/android">Download .apk <span data-rel="apk-size">2.9 MB</span></a>
       <details><summary>My phone warns about unknown apps</summary><p>Android asks before installing anything from outside the Play Store. Allow your browser or file manager to install it, then you can turn that off again.</p></details>
-      <button class="sum" type="button" data-sum="9d084c93e583fa3a7e56f85ba16728e33335e9ea605c4ce20de30edec9617bc3"><span>SHA-256</span> <code>9d084c93e583…9617bc3</code> <em>Copy</em></button>
+      <button class="sum" type="button" data-full="apk" data-sum="b04370ebfb702db5557c6dc7895d7dc78570585c7f1255a2123159045528d29e"><span>SHA-256</span> <code data-rel="apk-sha">b04370ebfb70…528d29e</code> <em>Copy</em></button>
     </article>
   </div>
-  <p class="fine"><span class="total" hidden></span>Version 0.2.0. A zip that starts a little faster, <a href="https://github.com/DarkNull07/SyncPad/releases">all releases</a> and the <a href="https://github.com/DarkNull07/SyncPad">source code</a> are on GitHub.</p>
+  <p class="fine"><span class="total" hidden></span>Version <span data-rel="version">0.2.1</span>, <span data-rel="date">25 November 2026</span>. A zip that starts a little faster, <a href="https://github.com/DarkNull07/SyncPad/releases">all releases</a> and the <a href="https://github.com/DarkNull07/SyncPad">source code</a> are on GitHub.</p>
+  <details class="log"><summary>What's new</summary><ul><!--log--><li><h3>0.2.1 <span>25 November 2026</span></h3><ul><li>Both apps show their version in Settings.</li><li>New website: smooth scrolling, its own pointer, a deck you can press, and a list of changes.</li><li>One script now updates the version, downloads and checksums everywhere.</li></ul></li><li><h3>0.2.0 <span>25 November 2026</span></h3><ul><li>First public release.</li><li>Trackpad, keyboard, air mouse, slides, media, deck, gamepad, clipboard, files both ways and the laptop's screen.</li><li>USB, Wi-Fi and Bluetooth, switchable from any page.</li></ul></li><!--/log--></ul></details>
 </section>
 
 <section class="faq">
@@ -170,10 +194,11 @@
 </main>
 
 <footer>
+  <p class="mark" aria-hidden="true">SyncPad</p>
   <p>SyncPad is MIT licensed, and comes with no warranty.</p>
   <p><a href="https://github.com/DarkNull07/SyncPad">GitHub</a><a href="https://github.com/DarkNull07/SyncPad/issues">Report a problem</a><a href="https://github.com/DarkNull07/SyncPad/blob/main/THIRD_PARTY.md">Third-party licences</a></p>
 </footer>
 
-<div class="bar glass" aria-hidden="true"><span>SyncPad 0.2</span><a tabindex="-1" href="/download/windows">Windows</a><a tabindex="-1" href="/download/android">Android</a></div>
+<div class="bar glass" aria-hidden="true"><span>SyncPad <b data-rel="short">0.2</b></span><a tabindex="-1" href="/download/windows">Windows</a><a tabindex="-1" href="/download/android">Android</a></div>
 </body>
 </html>

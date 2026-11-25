@@ -13,6 +13,7 @@ from tkinter import filedialog
 import segno
 from PIL import Image, ImageDraw, ImageTk
 
+from . import __version__
 from .config import local_ips
 from .fsapi import RUNNABLE
 from .phonetab import PhoneTab
@@ -486,7 +487,7 @@ class App:
         else:
             self.usb_btn.enable(bool(self.usb.ready))
         ips = local_ips()
-        self.addr.config(text=(", ".join(ips[:2]) if ips else "No network") + f"   port {self.server.port}")
+        self.addr.config(text=(", ".join(ips[:2]) if ips else "No network") + f"   port {self.server.port}   SyncPad {__version__}")
         for c in self.devices.winfo_children():
             c.destroy()
         w = W - 2 * PAD

@@ -127,6 +127,8 @@ class Hub(private val ctx: Context) : Sink {
     var btSpeed: Float by pref("btspeed", 1f) { hidLink.speed = btSpeed }
     var toldUnsteady = false
 
+    val version: String = runCatching { ctx.packageManager.getPackageInfo(ctx.packageName, 0).versionName }.getOrNull().orEmpty()
+
     val padConfig get() = PadConfig(speed, accel, scrollSpeed, natural, tap)
 
     private fun <T : Any> pref(key: String, default: T, after: () -> Unit = {}): kotlin.properties.ReadWriteProperty<Any?, T> = object : kotlin.properties.ReadWriteProperty<Any?, T> {

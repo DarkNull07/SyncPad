@@ -352,4 +352,5 @@ fun SettingsPage(hub: Hub) = Page {
             }
         }
     }
+    Body("SyncPad ${hub.version}", modifier = Modifier.padding(4.dp))
 }

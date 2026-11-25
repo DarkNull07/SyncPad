@@ -155,7 +155,7 @@ class UiTest {
         rule.onNodeWithText("Wi-Fi").performClick(); rule.waitForIdle()
         org.junit.Assert.assertEquals(dev.syncpad.app.net.Mode.WIFI, Hub(ApplicationProvider.getApplicationContext()).mode)
     }
-    /** The user's phone, less its status and navigation bars: the whole pad must show without scrolling. */
+    /** A common 1080 by 2400 phone, less its status and navigation bars: the whole pad must show without scrolling. */
     @Test @Config(qualifiers = "w360dp-h730dp-480dpi") fun deckFitsThisPhone() = shot("deck_360", Tab.DECK) {
         val root = rule.onNodeWithText("Deck").fetchSemanticsNode().boundsInRoot.top
         val left = rule.onNode(androidx.compose.ui.test.hasContentDescription("Left click")).fetchSemanticsNode().boundsInRoot

@@ -4,7 +4,7 @@
   const calm = matchMedia("(prefers-reduced-motion: reduce)").matches;
   const clamp = (v, a = 0, b = 1) => Math.min(b, Math.max(a, v)), mix = (a, b, t) => a + (b - a) * t;
   const smooth = (t) => t * t * (3 - 2 * t);
-  const LIME = "200,242,80";
+  let LIME = "200,242,80";
 
   // Each animated part runs only while it is on screen, off one shared frame loop.
   const parts = [];
@@ -34,32 +34,130 @@
   addEventListener("resize", wake, { passive: true });
   document.addEventListener("visibilitychange", wake);
 
-  // ---- the page is the pad: dots wake up near the pointer, as they do in the app
-  if (!calm && matchMedia("(hover: hover)").matches) {
+  const fine = matchMedia("(hover: hover) and (pointer: fine)").matches;
+
+  // ---- the page is the pad: dots wake up near the pointer, as they do in the app, and waves cross them
+  const waves = [];
+  let ripple = () => {};
+  if (!calm) {
     const c = $(".field"), at = { x: -999, y: -999, k: 0, goal: 0 };
-    let old = null;
-    addEventListener("pointermove", (e) => {
-      at.x = e.clientX; at.y = e.clientY;
-      at.goal = e.target.closest?.(".hero-phone, a, button, summary") ? 0 : 1;
-      wake();
-    }, { passive: true });
-    document.documentElement.addEventListener("pointerleave", () => { at.goal = 0; wake(); });
-    parts.push({ seen: true, draw() {
-      const [g] = fit(c), R = 112, S = 26;
-      if (old) g.clearRect(old[0] - R - 4, old[1] - R - 4, 2 * R + 8, 2 * R + 8);
+    let used = false;
+    ripple = (x, y, big = 1) => { waves.push({ x, y, t: performance.now(), big }); wake(); };
+    if (fine) {
+      addEventListener("pointermove", (e) => {
+        at.x = e.clientX; at.y = e.clientY;
+        at.goal = e.target.closest?.(".hero-phone, a, button, summary") ? 0 : 1;
+        wake();
+      }, { passive: true });
+      document.documentElement.addEventListener("pointerleave", () => { at.goal = 0; wake(); });
+      addEventListener("pointerdown", (e) => { if (!e.target.closest(".hero-phone, a, button, summary")) ripple(e.clientX, e.clientY, .45); }, { passive: true });
+    }
+    parts.push({ seen: true, draw(now) {
       at.k += (at.goal - at.k) * .16;
-      if (at.k > .01) {
-        for (let y = Math.floor((at.y - R) / S) * S + S / 2; y < at.y + R; y += S)
-          for (let x = Math.floor((at.x - R) / S) * S + S / 2; x < at.x + R; x += S) {
-            const n = (1 - Math.hypot(x - at.x, y - at.y) / R) * at.k;
-            if (n <= 0) continue;
-            g.fillStyle = `rgba(${LIME},${.15 + .75 * n})`;
-            g.beginPath(); g.arc(x, y, 1 + 1.9 * n, 0, 7); g.fill();
-          }
-        old = [at.x, at.y];
+      const spot = at.k > .01;
+      while (waves.length && now - waves[0].t > 1500) waves.shift();
+      if (!spot && !waves.length) { if (used) { const [g, w, h] = fit(c); g.clearRect(0, 0, w, h); used = false; } return Math.abs(at.goal - at.k) > .01; }
+      const [g, w, h] = fit(c), S = 26, R = 112;
+      g.clearRect(0, 0, w, h); used = true;
+      const dot = (x, y, n) => { g.fillStyle = `rgba(${LIME},${.15 + .75 * n})`; g.beginPath(); g.arc(x, y, 1 + 1.9 * n, 0, 7); g.fill(); };
+      const box = (x, y, r, f) => {
+        for (let b = Math.max(0, Math.floor((y - r) / S)) * S + S / 2; b < Math.min(h, y + r); b += S)
+          for (let q = Math.max(0, Math.floor((x - r) / S)) * S + S / 2; q < Math.min(w, x + r); q += S) { const n = f(q, b); if (n > .03) dot(q, b, n); }
+      };
+      if (spot) box(at.x, at.y, R, (q, b) => (1 - Math.hypot(q - at.x, b - at.y) / R) * at.k);
+      for (const v of waves) {
+        const t = (now - v.t) / 1500, r = 1500 * v.big * (1 - (1 - t) ** 2.2), band = 90 * (.5 + v.big);
+        box(v.x, v.y, r + band, (q, b) => Math.max(0, 1 - Math.abs(Math.hypot(q - v.x, b - v.y) - r) / band) * (1 - t) ** 1.4);
       }
-      return Math.abs(at.goal - at.k) > .01;
+      return waves.length > 0 || Math.abs(at.goal - at.k) > .01;
     } });
+  }
+
+  // ---- smooth scrolling: mouse wheels glide. Touchpads, touch and keys are already smooth, so they are left alone.
+  const glide = { on: false, to: 0, pos: 0, last: 0, tau: 95 };
+  const limit = () => document.documentElement.scrollHeight - innerHeight;
+  const glideTo = (y, tau = 95) => {
+    if (calm) return scrollTo(0, y);
+    if (!glide.on) { glide.on = true; glide.pos = scrollY; glide.last = performance.now(); requestAnimationFrame(roll); }
+    glide.to = clamp(y, 0, limit()); glide.tau = tau;
+  };
+  const roll = (now) => {
+    if (!glide.on) return;
+    if (Math.abs(scrollY - Math.round(glide.pos)) > 3 && Math.abs(scrollY - glide.pos) > 3) { glide.on = false; return; }   // something else scrolled
+    glide.pos += (glide.to - glide.pos) * (1 - Math.exp(-clamp(now - glide.last, 0, 50) / glide.tau));
+    glide.last = now;
+    if (Math.abs(glide.to - glide.pos) < .6) { scrollTo(0, glide.to); glide.on = false; return; }
+    scrollTo(0, glide.pos);
+    requestAnimationFrame(roll);
+  };
+  if (!calm) {
+    addEventListener("wheel", (e) => {
+      if (e.ctrlKey || e.shiftKey || e.metaKey || !e.deltaY) return;
+      const notch = e.deltaMode === 1 || (Math.abs(e.wheelDeltaY) >= 120 && e.wheelDeltaY % 120 === 0);
+      if (!notch) { glide.on = false; return; }
+      e.preventDefault();
+      glideTo((glide.on ? glide.to : scrollY) + (e.deltaMode === 1 ? e.deltaY * 34 : e.deltaY));
+    }, { passive: false });
+    for (const t of ["keydown", "pointerdown", "touchstart"]) addEventListener(t, () => { glide.on = false; }, { passive: true });
+  }
+  document.addEventListener("click", (e) => {
+    const l = e.target.closest?.('a[href^="#"]');
+    if (!l || e.metaKey || e.ctrlKey) return;
+    const to = document.getElementById(l.hash.slice(1));
+    if (!to) return;
+    e.preventDefault();
+    const pad = l.hash === "#top" ? 1e6 : to.classList.contains("connect") ? 0 : 60;
+    glideTo(Math.max(0, scrollY + to.getBoundingClientRect().top - pad + (to.classList.contains("connect") ? 0 : 20)), 190);
+    history.replaceState(null, "", l.hash);
+    to.setAttribute("tabindex", "-1"); to.focus({ preventScroll: true });
+  });
+
+  // ---- the page's own pointer: the arrow is exact, the halo follows and wraps what it can press
+  if (fine && !calm) {
+    const root = document.documentElement;
+    const p = document.createElement("div"), o = document.createElement("div");
+    p.className = "ptr"; o.className = "aura";
+    p.setAttribute("aria-hidden", "true"); o.setAttribute("aria-hidden", "true");
+    p.innerHTML = '<svg viewBox="0 0 24 30"><path d="M2 2v21.5l5.4-5 3.7 8.6 4-1.7-3.7-8.4h7.6z"/></svg>';
+    document.body.append(o, p);
+    const m = { x: 0, y: 0 }, v = { x: 0, y: 0, w: 38, h: 38, r: 19 };
+    let hug = null, started = false, down = 0, last = 0;
+    const move = (e) => {
+      if (e.pointerType !== "mouse") { root.classList.remove("own"); return; }
+      m.x = e.clientX; m.y = e.clientY;
+      if (!started) { started = true; v.x = m.x - 19; v.y = m.y - 19; }
+      root.classList.add("own");
+      const t = document.elementFromPoint(m.x, m.y);
+      root.classList.toggle("away", !!t?.closest(".hero-phone"));
+      hug = t?.closest(".btn, .nav a, .deck button, .bar a, .modes li, summary, .sum, footer a, .fine a, dd a") || null;
+      p.style.transform = `translate(${m.x - 1.5}px,${m.y - 1.5}px) scale(${down ? .86 : 1})`;
+      wake();
+    };
+    addEventListener("pointermove", move, { passive: true });
+    addEventListener("pointerdown", (e) => { down = 1; move(e); }, { passive: true });
+    addEventListener("pointerup", (e) => { down = 0; move(e); }, { passive: true });
+    root.addEventListener("pointerleave", () => root.classList.add("away"));
+    root.addEventListener("pointerenter", () => root.classList.remove("away"));
+    parts.push({ seen: true, draw(now) {
+      if (!started) return false;
+      const dt = clamp(now - last || 16, 0, 40); last = now;
+      let x = m.x - 19, y = m.y - 19, w = 38, h = 38, r = 19;
+      if (hug?.isConnected) {
+        const b = hug.getBoundingClientRect(), s = getComputedStyle(hug), g = hug.matches(".btn, .deck button, .nav a, .bar a") ? 5 : 8;
+        // It leans a little towards the pointer, so it feels held rather than snapped.
+        const lx = clamp((m.x - b.left) / b.width) - .5, ly = clamp((m.y - b.top) / b.height) - .5;
+        x = b.left - g + lx * 6; y = b.top - g + ly * 5; w = b.width + 2 * g; h = b.height + 2 * g;
+        r = Math.min(h / 2, (parseFloat(s.borderTopLeftRadius) || 10) + g);
+      }
+      o.classList.toggle("hug", !!hug);
+      const k = 1 - Math.exp(-dt / (hug ? 58 : 72));
+      let far = 0;
+      for (const [n, t] of [["x", x], ["y", y], ["w", w], ["h", h], ["r", r]]) { v[n] += (t - v[n]) * k; far = Math.max(far, Math.abs(t - v[n])); }
+      o.style.transform = `translate(${v.x}px,${v.y}px)`;
+      o.style.width = `${v.w}px`; o.style.height = `${v.h}px`; o.style.borderRadius = `${v.r}px`;
+      return far > .15;
+    } });
+    addEventListener("scroll", () => { if (started) { const t = document.elementFromPoint(m.x, m.y); hug = t?.closest(".btn, .nav a, .deck button, .bar a, .modes li, summary, .sum, footer a, .fine a, dd a") || null; } }, { passive: true });
   }
 
   // ---- hero: drag on the phone, the laptop's cursor follows; tap picks up the sun
@@ -164,12 +262,25 @@
 
   // ---- three connections: one line that becomes a cable, a wave, then a trail of dots
   {
-    const sec = $(".connect"), c = $(".wire"), items = $$(".modes li");
+    const sec = $(".connect"), c = $(".wire"), items = $$(".modes li"), words = $$(".word span");
     let pos = 0, goal = 0;
     items.forEach((li, i) => li.addEventListener("click", () => {
       const r = sec.getBoundingClientRect();
-      scrollTo({ top: scrollY + r.top + (r.height - innerHeight) * (i + .5) / 3, behavior: calm ? "auto" : "smooth" });
+      glideTo(scrollY + r.top + (r.height - innerHeight) * (i + .5) / 3, 170);
     }));
+    const shot = new Image();
+    shot.src = "/img/pad.webp";
+    const face = (g, x, y, w, h, r, f) => { g.save(); g.beginPath(); g.roundRect(x - w / 2 + 5, y - h / 2 + 5, w - 10, h - 10, Math.max(2, r - 4)); g.clip(); f(x - w / 2 + 5, y - h / 2 + 5, w - 10, h - 10); g.restore(); };
+    const hills = (g, x, y, w, h) => {
+      const s = g.createLinearGradient(0, y, 0, y + h);
+      s.addColorStop(0, "#39407a"); s.addColorStop(.78, "#f0a074"); g.fillStyle = s; g.fillRect(x, y, w, h);
+      g.fillStyle = "#ffd9a0"; g.beginPath(); g.arc(x + w * .66, y + h * .46, h * .1, 0, 7); g.fill();
+      for (const [k, c] of [[.62, "#80607a"], [.74, "#4e3c58"], [.87, "#2a2438"]]) {
+        g.fillStyle = c; g.beginPath(); g.moveTo(x, y + h);
+        for (let i = 0; i <= 24; i++) g.lineTo(x + w * i / 24, y + h * (k + .055 * Math.sin(i / 24 * 7 + k * 21)));
+        g.lineTo(x + w, y + h); g.fill();
+      }
+    };
     const device = (g, x, y, w, h, r, lit) => {
       g.beginPath(); g.roundRect(x - w / 2, y - h / 2, w, h, r); g.fillStyle = "#30353b"; g.fill();
       g.beginPath(); g.roundRect(x - w / 2 + 5, y - h / 2 + 5, w - 10, h - 10, Math.max(2, r - 4)); g.fillStyle = "#15171a"; g.fill();
@@ -181,6 +292,7 @@
       goal = calm ? 1 : clamp(p * 3 - .5, 0, 2);
       pos += (goal - pos) * (calm ? 1 : .14);
       items.forEach((li, i) => { li.classList.toggle("on", i === idx); li.firstElementChild.style.setProperty("--p", `${clamp(p * 3 - i) * 100}%`); });
+      words.forEach((s, i) => { const d = pos - i; s.style.setProperty("--o", clamp(1 - Math.abs(d) * 1.7, .004).toFixed(3)); s.style.setProperty("--x", `${(-d * 34).toFixed(2)}vw`); });
       const [g, w, h] = fit(c), t = now / 1000, mid = h / 2, small = w < 600;
       g.clearRect(0, 0, w, h);
       const W = [clamp(1 - pos), clamp(1 - Math.abs(pos - 1)), clamp(pos - 1)];
@@ -202,6 +314,8 @@
         g.beginPath(); g.arc(a + L * u, y(u), (3 + 2.4 * W[2]) * (.5 + .5 * f), 0, 7); g.fillStyle = `rgba(${LIME},${.25 + .75 * f})`; g.fill();
       }
       device(g, x0, mid, pw, ph, pw * .2, 1); device(g, x1, mid - 6, lw, lh, 12, 1);
+      if (shot.complete && shot.naturalWidth) face(g, x0, mid, pw, ph, pw * .2, (x, y, w2, h2) => g.drawImage(shot, x, y, w2, h2));
+      face(g, x1, mid - 6, lw, lh, 12, (x, y, w2, h2) => hills(g, x, y, w2, h2));
       g.beginPath(); g.roundRect(x1 - lw / 2 - 9, mid + lh / 2 - 4, lw + 18, 9, 4); g.fillStyle = "#30353b"; g.fill();
       return !calm;
     });
@@ -209,7 +323,7 @@
 
   // ---- features: one phone that turns itself to suit what is being said
   {
-    const show = $(".show"), imgs = $$(".show img"), steps = $$(".steps article"), dots = $(".dots");
+    const show = $(".show"), imgs = $$(".show img"), steps = $$(".steps article"), dots = $(".dots"), fx = $$(".fx");
     const POSE = [{}, { "--ry": "-13deg", "--rx": "3deg" }, { "--rx": "28deg", "--rz": "-13deg", "--ry": "9deg" }, { "--ry": "12deg" }, { "--ry": "-7deg", "--rx": "5deg" }, { "--rz": "-90deg", "--k": "1.16" }];
     let cur = -1;
     // Lying down, the phone is as wide as it was tall: shrink it to its column.
@@ -221,6 +335,7 @@
       steps.forEach((s, n) => s.classList.toggle("on", n === i));
       imgs.forEach((m, n) => m.classList.toggle("on", n === i));
       dots.classList.toggle("on", i === 0 && !calm);
+      fx.forEach((f) => f.classList.toggle("on", +f.dataset.f === i && !calm));
       for (const k of ["--rx", "--ry", "--rz", "--k"]) show.style.setProperty(k, calm && k !== "--rz" ? (k === "--k" ? "1" : "0deg") : POSE[i][k] || (k === "--k" ? "1" : "0deg"));
       if (i === 5) lie();
     };
@@ -238,6 +353,52 @@
       show.style.setProperty("--ry", `${mix(-26, 26, e.clientX / innerWidth)}deg`);
       show.style.setProperty("--rx", `${mix(26, -20, e.clientY / innerHeight)}deg`);
     }, { passive: true });
+  }
+
+  // ---- a deck whose keys run this page
+  {
+    const HUES = ["#c8f250", "#7fe0c3", "#9db8ff", "#e3b7ff", "#ff9e8a", "#ffd27a"];
+    let hue = 0, typing = 0;
+    const toast = (t) => { $(".toast")?.remove(); const d = document.createElement("div"); d.className = "toast"; d.setAttribute("role", "status"); d.textContent = t; document.body.append(d); setTimeout(() => d.remove(), 2300); };
+    const centre = (b) => { const r = b.getBoundingClientRect(); return [r.left + r.width / 2, r.top + r.height / 2]; };
+    const DO = {
+      colour(b) {
+        hue = (hue + 1) % HUES.length;
+        const rgb = [1, 3, 5].map((i) => parseInt(HUES[hue].slice(i, i + 2), 16)), s = document.documentElement.style;
+        LIME = rgb.join(","); s.setProperty("--lime", HUES[hue]); s.setProperty("--rgb", rgb.join(" ")); b.style.setProperty("--t", HUES[hue]);
+        ripple(...centre(b), .6);
+      },
+      ripple: (b) => ripple(...centre(b), 1),
+      shot() { const f = document.createElement("div"); f.className = "flash"; document.body.append(f); setTimeout(() => f.remove(), 600); toast("Captured. Well, it would be."); },
+      type() {
+        const h = $(".typed"), s = $("span", h), full = "Typed by a deck key.", id = ++typing;
+        h.classList.add("go"); s.textContent = "";
+        if (calm) { s.textContent = full; return; }
+        let n = 0;
+        const step = () => {
+          if (id !== typing) return;
+          s.textContent = full.slice(0, ++n);
+          if (n < full.length) setTimeout(step, 34 + Math.random() * 46);
+          else setTimeout(() => { if (id === typing) { h.classList.remove("go"); s.textContent = "A deck you can press right now."; } }, 3200);
+        };
+        setTimeout(step, 180);
+      },
+      async copy() { try { await navigator.clipboard.writeText(location.origin); toast("Link copied"); } catch { toast(location.host); } },
+      open: () => glideTo(scrollY + $("#download").getBoundingClientRect().top, 200),
+    };
+    $$(".deck button").forEach((b) => b.addEventListener("click", () => DO[b.dataset.k](b)));
+    // Keys tip towards the pointer, as a pressed key would.
+    if (fine && !calm) $$(".deck button").forEach((b) => {
+      b.addEventListener("pointermove", (e) => { const r = b.getBoundingClientRect(); b.style.transform = `rotateY(${((e.clientX - r.left) / r.width - .5) * 14}deg) rotateX(${(.5 - (e.clientY - r.top) / r.height) * 14}deg)${e.buttons ? " scale(.94)" : ""}`; });
+      b.addEventListener("pointerleave", () => { b.style.transform = ""; });
+    });
+  }
+
+  // ---- which section the nav is in
+  {
+    const links = $$(".nav .opt"), seen = new Map(links.map((l) => [document.getElementById(l.hash.slice(1)), l]));
+    const io = new IntersectionObserver((es) => es.forEach((e) => { if (e.isIntersecting) links.forEach((l) => l.classList.toggle("on", l === seen.get(e.target))); else seen.get(e.target).classList.remove("on"); }), { rootMargin: "-48% 0px -48% 0px" });
+    seen.forEach((_, el) => io.observe(el));
   }
 
   // ---- setup: a code dissolves into the pad's dot grid
