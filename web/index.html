@@ -1,0 +1,179 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>SyncPad: your phone is the trackpad</title>
+<meta name="description" content="SyncPad turns an Android phone into a trackpad, keyboard, air mouse, shortcut deck, gamepad and file browser for a Windows laptop. Over USB, Wi-Fi or Bluetooth. Free and open source.">
+<meta name="theme-color" content="#0D0E10">
+<meta property="og:title" content="SyncPad: your phone is the trackpad">
+<meta property="og:description" content="Trackpad, keyboard, air mouse, deck and files for your Windows laptop. Free and open source.">
+<meta property="og:image" content="https://syncpad-dark.vercel.app/img/og.png">
+<meta property="og:type" content="website">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="icon" href="/img/icon.svg" type="image/svg+xml">
+<link rel="preload" href="/fonts/hanken.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="stylesheet" href="/style.css">
+<script src="/app.js" defer></script>
+</head>
+<body>
+<a class="skip" href="#download">Skip to download</a>
+<canvas class="field" aria-hidden="true"></canvas>
+
+<nav class="nav glass" aria-label="Main">
+  <a class="brand" href="#top"><svg viewBox="0 0 32 32" aria-hidden="true"><rect x="8.5" y="3.5" width="15" height="25" rx="4.5"/><circle cx="16" cy="12" r="2.6"/></svg>SyncPad</a>
+  <a class="opt" href="#connect">Connections</a>
+  <a class="opt" href="#does">Features</a>
+  <a class="opt" href="#safe">Security</a>
+  <a class="hub" href="https://github.com/DarkNull07/SyncPad">GitHub<span class="stars-n" hidden></span></a>
+  <a class="go" href="#download">Download</a>
+</nav>
+
+<main id="top">
+
+<section class="hero">
+  <div class="say">
+    <h1>Your phone is the trackpad.</h1>
+    <p class="lead">SyncPad puts a precise trackpad, a full keyboard, an air mouse and your laptop's files in your hand. For Android and Windows, free and open source.</p>
+    <p class="acts">
+      <a class="btn main" data-dl="windows" href="/download/windows">Get it for Windows</a>
+      <a class="btn" data-dl="android" href="/download/android">Get it for Android</a>
+    </p>
+  </div>
+
+  <div class="stage" role="img" aria-label="A phone controlling a laptop. Dragging on the phone moves the cursor on the laptop, and tapping picks up the sun.">
+    <div class="laptop">
+      <div class="lid"><div class="lcd">
+        <svg class="sky" viewBox="0 0 1600 1000" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
+          <defs>
+            <linearGradient id="g" x1="0" y1="0" x2="0" y2="1"><stop class="s0" offset="0"/><stop class="s1" offset=".78"/></linearGradient>
+            <radialGradient id="h"><stop class="h0" offset="0" stop-opacity=".55"/><stop class="h1" offset="1" stop-opacity="0"/></radialGradient>
+          </defs>
+          <rect width="1600" height="1000" fill="url(#g)"/>
+          <g class="stars" fill="#fff"></g>
+          <circle class="halo" r="330" fill="url(#h)"/>
+          <circle class="sun" r="84"/>
+          <path class="m1" d="M0 640C180 560 330 690 520 600S860 500 1030 610s340 60 570-60v450H0z"/>
+          <path class="m2" d="M0 740c220-110 380 70 600-20s420-120 620 10 240 40 380-20v290H0z"/>
+          <path class="m3" d="M0 860c260-90 470 60 760-30s520-60 840 40v130H0z"/>
+        </svg>
+        <span class="clock">5:42</span>
+        <svg class="cursor" viewBox="0 0 24 30" aria-hidden="true"><path d="M2 2v21.5l5.4-5 3.7 8.6 4-1.7-3.7-8.4h7.6z"/></svg>
+      </div></div>
+      <div class="deckbase"></div>
+    </div>
+    <div class="phone hero-phone">
+      <img src="/img/pad.webp" width="540" height="1110" alt="" fetchpriority="high">
+      <div class="touch"><i class="finger"></i></div>
+      <span class="hint">Drag here. Tap the sun.</span>
+    </div>
+  </div>
+</section>
+
+<section class="connect" id="connect">
+  <div class="pin">
+    <header><h2>Three ways in. Switch whenever.</h2></header>
+    <canvas class="wire" aria-hidden="true"></canvas>
+    <ol class="modes">
+      <li class="on"><h3>USB</h3><p>The smooth one. About 2 ms to the laptop, on any network or none.</p></li>
+      <li><h3>Wi-Fi</h3><p>No cable, every feature. It finds your laptop and comes back by itself.</p></li>
+      <li><h3>Bluetooth</h3><p>A real mouse, keyboard and game controller. Nothing to install on the computer.</p></li>
+    </ol>
+    <p class="fine">Delay shown by the app on a realme P3 5G with a Windows 11 laptop. Yours depends on your hardware and network.</p>
+  </div>
+</section>
+
+<section class="does" id="does">
+  <header><h2>One phone,<br>a desk's worth of input.</h2></header>
+  <div class="track">
+    <div class="holder"><div class="phone show">
+      <img data-i="0" class="on" src="/img/pad.webp" width="540" height="1110" alt="The trackpad screen" loading="lazy">
+      <img data-i="1" src="/img/shortcut.webp" width="540" height="1110" alt="Building a shortcut from Win, Shift and S, then Ctrl and V" loading="lazy">
+      <img data-i="2" src="/img/air.webp" width="540" height="1110" alt="The air mouse, held to point" loading="lazy">
+      <img data-i="3" src="/img/files.webp" width="540" height="1110" alt="Browsing a laptop folder on the phone" loading="lazy">
+      <img data-i="4" src="/img/share.webp" width="540" height="1110" alt="Sending files with progress" loading="lazy">
+      <img data-i="5" class="wide" src="/img/gamepad.webp" width="1110" height="526" alt="The game controller" loading="lazy">
+      <span class="dots"><i></i><i></i><i></i></span>
+    </div></div>
+    <div class="steps">
+      <article><h3>A trackpad that feels like one</h3><p>Slow fingers get precision, fast ones cross the screen. Two-finger scrolling with momentum, pinch, tap and drag, three and four finger swipes. A lost Wi-Fi packet never loses movement.</p></article>
+      <article><h3>Shortcuts you record, not spell</h3><p>Press the keys on your laptop and they land on your phone as a deck key. Chain several to run in order. Or tap them together from a key grid.</p></article>
+      <article><h3>Point from across the room</h3><p>Hold the button and move the phone. It reads gravity, so it works however you hold it. Slides mode adds a timer, a laser and one very large Next.</p></article>
+      <article><h3>Your laptop's files, in hand</h3><p>Browse, search and preview. Save a file to your phone, take a whole folder as a zip, or open something on the laptop. Deleting only ever means the Recycle Bin.</p></article>
+      <article><h3>Send things without thinking</h3><p>Share from any app, or drop files on the SyncPad window. You see the progress and speed, and you can cancel. The clipboard can follow you too.</p></article>
+      <article><h3>Turn it sideways and play</h3><p>Over Bluetooth, Windows sees a real controller with no driver. Over USB and Wi-Fi it presses keyboard keys instead.</p></article>
+    </div>
+  </div>
+</section>
+
+<section class="setup" id="setup">
+  <canvas class="qr" aria-hidden="true"></canvas>
+  <div>
+    <h2>Pair it once.</h2>
+    <ol>
+      <li><b>Open SyncPad.exe on your laptop.</b> It shows a code.</li>
+      <li><b>Scan the code with the phone app.</b> The code pairs one phone, then changes.</li>
+      <li><b>Swipe.</b> Next time it connects by itself.</li>
+    </ol>
+  </div>
+</section>
+
+<section class="safe" id="safe">
+  <h2>It can control your computer, so it had better be careful.</h2>
+  <dl>
+    <div><dt>Encrypted end to end</dt><dd>Keystrokes, files and screen travel under AES-256-GCM with fresh keys for every connection. Bluetooth uses Bluetooth's own encryption.</dd></div>
+    <div><dt>Nothing in the middle</dt><dd>No account, no server, no analytics in the apps. Your phone talks to your laptop and nowhere else.</dd></div>
+    <div><dt>One key per phone</dt><dd>Exchanged by the pairing code and protected by Windows on the laptop. Press Forget and that phone is locked out.</dd></div>
+    <div><dt>You can see it</dt><dd>Windows notifies you when a phone pairs, and SyncPad says when a phone is viewing your screen or recording a shortcut.</dd></div>
+    <div><dt>Open source</dt><dd>MIT licensed, with the protocol written down and the tests included. <a href="https://github.com/DarkNull07/SyncPad">Read the code</a>.</dd></div>
+  </dl>
+  <h3>What it does not do</h3>
+  <ul>
+    <li>It is for Android 9 or newer and Windows 10 or 11. There is no iPhone or Mac version.</li>
+    <li>It works when both devices are on the same network, a cable or Bluetooth. Not across the internet.</li>
+    <li>Windows keeps some things to itself: Win+L, Ctrl+Alt+Del, and programs running as administrator unless SyncPad is too.</li>
+    <li>Some phone hotspots pause their radio, which no app can fix. SyncPad tells you when it happens.</li>
+    <li>There is no forward secrecy yet. Someone who records your traffic and later steals the key could read it.</li>
+  </ul>
+</section>
+
+<section class="get" id="download">
+  <h2>Get both halves.</h2>
+  <div class="pair">
+    <article data-os="windows">
+      <h3>Windows</h3>
+      <p>Windows 10 or 11, 64-bit. One file, nothing to install.</p>
+      <a class="btn main" data-count="windows" href="/download/windows">Download .exe <span>26.6 MB</span></a>
+      <details><summary>Windows says it protected my PC</summary><p>SyncPad is not signed with a paid certificate, so SmartScreen does not recognise it yet. If you downloaded it here and the checksum matches, choose More info, then Run anyway. You can also build it yourself.</p></details>
+      <button class="sum" type="button" data-sum="9c5e16d3994f016189d1ae245606fa863fb63bc7341a47da15c2ff6e842f794e"><span>SHA-256</span> <code>9c5e16d3994f…42f794e</code> <em>Copy</em></button>
+    </article>
+    <article data-os="android">
+      <h3>Android</h3>
+      <p>Android 9 or newer. An APK, outside the Play Store.</p>
+      <a class="btn main" data-count="android" href="/download/android">Download .apk <span>2.9 MB</span></a>
+      <details><summary>My phone warns about unknown apps</summary><p>Android asks before installing anything from outside the Play Store. Allow your browser or file manager to install it, then you can turn that off again.</p></details>
+      <button class="sum" type="button" data-sum="9d084c93e583fa3a7e56f85ba16728e33335e9ea605c4ce20de30edec9617bc3"><span>SHA-256</span> <code>9d084c93e583…9617bc3</code> <em>Copy</em></button>
+    </article>
+  </div>
+  <p class="fine"><span class="total" hidden></span>Version 0.2.0. A zip that starts a little faster, <a href="https://github.com/DarkNull07/SyncPad/releases">all releases</a> and the <a href="https://github.com/DarkNull07/SyncPad">source code</a> are on GitHub.</p>
+</section>
+
+<section class="faq">
+  <h2>Good to know</h2>
+  <details><summary>Which connection should I use?</summary><p>USB when you want it smoothest. Bluetooth when wireless, or on a computer you cannot install things on. Wi-Fi when you want files or the screen without a cable. In Automatic, SyncPad picks for you.</p></details>
+  <details><summary>It stays on Searching over Wi-Fi.</summary><p>Campus, hotel and guest networks often stop devices from seeing each other. Connect the laptop to your phone's hotspot, or use USB or Bluetooth. Also check that Windows Firewall allows SyncPad on that kind of network.</p></details>
+  <details><summary>USB needs debugging turned on. Why?</summary><p>SyncPad reaches the laptop through Android's debugging link, which needs adb on the laptop. USB tethering also works and needs no debugging.</p></details>
+  <details><summary>Does it work on the lock screen?</summary><p>Over Bluetooth, yes: to Windows it is an ordinary mouse. Over USB and Wi-Fi, Windows does not let programs reach the lock screen.</p></details>
+  <details><summary>Can the laptop see my phone's files?</summary><p>Only if you turn on Phone files and grant Android's permission. Then it can browse and add files while SyncPad is open. It cannot delete any.</p></details>
+</section>
+
+</main>
+
+<footer>
+  <p>SyncPad is MIT licensed, and comes with no warranty.</p>
+  <p><a href="https://github.com/DarkNull07/SyncPad">GitHub</a><a href="https://github.com/DarkNull07/SyncPad/issues">Report a problem</a><a href="https://github.com/DarkNull07/SyncPad/blob/main/THIRD_PARTY.md">Third-party licences</a></p>
+</footer>
+
+<div class="bar glass" aria-hidden="true"><span>SyncPad 0.2</span><a tabindex="-1" href="/download/windows">Windows</a><a tabindex="-1" href="/download/android">Android</a></div>
+</body>
+</html>

@@ -1,0 +1,35 @@
+# Built apps
+dist/
+
+# Python
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+host/build/
+
+# Android
+.gradle/
+.kotlin/
+build/
+local.properties
+*.apk
+*.aab
+
+# Never commit these
+*.keystore
+*.jks
+.env
+.env.*
+
+# Editors, logs and Windows
+.idea/
+.vscode/
+.claude/
+*.log
+Thumbs.db
+desktop.ini
+
+# Private notes
+Ideas.txt
+.vercel

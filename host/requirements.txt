@@ -1,0 +1,5 @@
+cryptography>=43
+Pillow>=11
+mss>=10
+segno>=1.6
+pystray>=0.19
