@@ -33,10 +33,17 @@ file/clipboard link and screen viewer for a Windows laptop. Over Wi-Fi, USB or B
 | USB | USB debugging on the phone | lowest latency, any network | - |
 | Wi-Fi | same network | everything, no cable | networks that isolate devices |
 | Bluetooth | Windows pairing, no laptop software | other PCs, lock screen | files, clipboard, screen, deck "Open" |
+| Anywhere | pairing at home once, both online | another Wi-Fi or mobile data | lock screen |
 
 Tap the connection label at the top right to choose Automatic, USB, Wi-Fi or Bluetooth at any time. In Bluetooth mode, files and
 the screen still use USB or Wi-Fi when there is one. In Automatic, USB and Wi-Fi switch by themselves. On campus or hotel Wi-Fi that blocks devices from seeing
 each other, connect the laptop to the phone's hotspot.
+
+**Anywhere:** in Automatic, when nothing nearby answers, the phone reaches the laptop over the internet with
+[iroh](https://www.iroh.computer): both sides dial each other by key, iroh punches a direct UDP path through
+the routers when it can and otherwise relays, and keeps trying to go direct. SyncPad's own encrypted
+protocol runs inside, unchanged. Only phones paired with the laptop are let in. Turn it off with
+*Connect from anywhere* on the phone or *Reachable from other networks* on the laptop.
 
 **Bluetooth, first time:** More > Connection > Turn on Bluetooth mouse > Make phone visible, then on
 Windows: Bluetooth > Add device. If the phone was already paired with this laptop, remove it
@@ -58,6 +65,16 @@ keystrokes, is AES-256-GCM encrypted and authenticated with fresh keys per conne
 works for one phone and expires after 10 minutes. Laptop-side keys are protected with Windows DPAPI.
 There is no forward secrecy: someone who records traffic and later steals the key could read it.
 A paired phone has full control of the laptop, so press *Forget* if you lose it.
+
+Away from home, iroh's free address and relay servers help the two find each other. A relay sees only
+encrypted traffic, plus addresses and amounts. Both apps ask GitHub for the newest version number now
+and then; turn that off in Settings. Nothing else leaves your devices.
+
+## Updates
+
+The Windows app downloads a new version in the background, checks it against the release's
+`SHA256SUMS.txt`, and installs it when you click the line at the bottom of its window. The Android
+app says when one is out and opens the website, since Android only installs what you choose.
 
 ## Development
 

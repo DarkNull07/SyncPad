@@ -4,7 +4,7 @@
   --bg: #0d0e10; --s1: #191b1e; --s2: #22252a; --s3: #30353b; --ink: #f1f3f2; --dim: #9aa1a7; --lime: #c8f250; --on: #12150a;
   --rgb: 200 242 80;
   --gut: clamp(16px, 5vw, 72px);
-  --ease: cubic-bezier(.2, .8, .2, 1);
+  --ease: cubic-bezier(.23, 1, .32, 1);       /* strong ease-out: moves at once, settles gently */
   color-scheme: dark;
 }
 * { box-sizing: border-box; margin: 0; }
@@ -16,6 +16,8 @@ body::before { content: ""; position: fixed; inset: 0; z-index: -2; background: 
 a { color: inherit; text-underline-offset: .2em; text-decoration-thickness: 1px; text-decoration-color: var(--s3); }
 a:hover { text-decoration-color: var(--lime); }
 :focus-visible { outline: 2px solid var(--lime); outline-offset: 3px; border-radius: 10px; }
+::selection { background: var(--lime); color: var(--on); }
+code, .get span, .stat, .log h3 span { font-variant-numeric: tabular-nums; }
 h1, h2, h3 { font-weight: 620; letter-spacing: -.028em; line-height: 1.02; text-wrap: balance; }
 h2 { font-size: clamp(2.2rem, 5.6vw, 5rem); letter-spacing: -.036em; }
 h3 { font-size: clamp(1.4rem, 2.2vw, 2rem); line-height: 1.12; }
@@ -42,7 +44,7 @@ section { padding: 0 var(--gut); }
 .nav .go:hover { background: var(--lime); color: var(--on); }
 
 .btn { display: inline-flex; align-items: center; gap: 12px; min-height: 54px; padding: 0 24px; border-radius: 18px; background: var(--s2); font-weight: 600; text-decoration: none; transition: transform .35s var(--ease); }
-.btn:hover { background: var(--s3); transition: background .2s, transform .35s var(--ease); }
+@media (hover: hover) { .btn:hover { background: var(--s3); transition: background .2s, transform .35s var(--ease); } }
 .btn:active { transform: scale(.965); transition-duration: .06s; }
 .btn.main { background: var(--lime); color: var(--on); }
 .btn.main:hover { background: #d8fa6e; }
@@ -97,10 +99,10 @@ h1 { font-size: clamp(3rem, 7.7vw, 10rem); letter-spacing: -.05em; line-height: 
 /* ---------------------------------------------------------------- connections */
 .word { position: absolute; inset: 0; display: grid; place-items: center; overflow: clip; z-index: -1; pointer-events: none; }
 .word span { grid-area: 1 / 1; font-size: min(21vw, 46vh); font-weight: 700; letter-spacing: -.06em; line-height: 1; color: #15171a; opacity: var(--o, .004); will-change: transform, opacity; transform: translateX(calc(var(--x, 0vw) - 8vw)) translateY(-4%); white-space: nowrap; }
-.connect { height: 330vh; padding: 0; }
+.connect { height: 420vh; padding: 0; }
 .pin { position: sticky; top: 0; height: 100svh; padding: 110px var(--gut) 40px; display: flex; flex-direction: column; justify-content: space-between; gap: 18px; }
 .wire { width: 100%; flex: 1; min-height: 160px; }
-.modes { list-style: none; padding: 0; display: grid; grid-template-columns: repeat(3, 1fr); gap: clamp(14px, 3vw, 48px); }
+.modes { list-style: none; padding: 0; display: grid; grid-template-columns: repeat(4, 1fr); gap: clamp(14px, 3vw, 48px); }
 .modes li { opacity: .5; transition: opacity .5s; cursor: pointer; }
 .modes li.on { opacity: 1; }
 .modes h3::before { content: ""; display: block; height: 3px; border-radius: 3px; margin-bottom: 18px; background: linear-gradient(90deg, var(--lime) var(--p, 0%), var(--s3) var(--p, 0%)); }
@@ -157,7 +159,7 @@ h1 { font-size: clamp(3rem, 7.7vw, 10rem); letter-spacing: -.05em; line-height: 
 .tell p { margin-top: 24px; max-width: 38ch; color: #c3c9cc; }
 .deck { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; perspective: 900px; }
 .deck button { font: inherit; font-weight: 580; color: var(--ink); border: 0; cursor: pointer; aspect-ratio: 1.06; border-radius: 26px; padding: clamp(14px, 1.7vw, 24px); display: flex; flex-direction: column; justify-content: space-between; align-items: flex-start; text-align: left; background: color-mix(in srgb, var(--t) 15%, #0f1113); transition: transform .5s var(--ease), background .3s; }
-.deck button:hover { background: color-mix(in srgb, var(--t) 24%, #0f1113); }
+@media (hover: hover) { .deck button:hover { background: color-mix(in srgb, var(--t) 24%, #0f1113); } }
 .deck button:active { transform: scale(.93) translateZ(-30px); transition-duration: .06s; background: color-mix(in srgb, var(--t) 44%, #0f1113); }
 .deck svg { width: clamp(26px, 2.4vw, 36px); fill: none; stroke: var(--t); stroke-width: 1.9; stroke-linecap: round; stroke-linejoin: round; }
 
@@ -245,7 +247,7 @@ footer .mark { width: 100%; font-size: 25.5vw; font-weight: 680; letter-spacing:
   .typed { min-height: 3.2em; }
   .deck { gap: 9px; }
   .deck button { border-radius: 20px; font-size: 15px; }
-  .connect { height: 300vh; }
+  .connect { height: 380vh; }
   .modes { grid-template-columns: 1fr; gap: 0; position: relative; min-height: 172px; }
   .modes li { position: absolute; inset: 0; opacity: 0; transform: translateY(14px); transition: opacity .35s, transform .5s var(--ease); }
   .modes li.on { opacity: 1; transform: none; }

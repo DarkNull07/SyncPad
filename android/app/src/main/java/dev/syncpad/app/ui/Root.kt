@@ -186,7 +186,7 @@ fun modeNote(hub: Hub, m: Mode): String {
     val s = hub.status
     val here = s.phase == Phase.CONNECTED
     return when (m) {
-        Mode.AUTO -> "USB first, then Wi-Fi, then Bluetooth"
+        Mode.AUTO -> if (hub.remote) "USB first, then Wi-Fi, then the internet when you are away" else "USB first, then Wi-Fi"
         Mode.USB -> if (here && s.via == "USB") "Connected" else if (hub.mode == Mode.USB) "No cable link found yet" else "Smoothest. Needs the cable"
         Mode.WIFI -> if (here && s.via == "Wi-Fi") (if (s.unsteady) "Connected, but unsteady" else "Connected") else if (hub.mode == Mode.WIFI) "Laptop not found on this network yet" else "No cable. Everything works"
         Mode.BT -> when (hub.hid.phase) {

@@ -29,35 +29,43 @@ if ($d) { $d.InvokeVerb('open'); 'ok' } else { 'none' }
 class PhoneTab:
     ROW = 44
 
-    def __init__(self, app, parent, colors):
+    def __init__(self, app, colors):
         self.app, self.c = app, colors
-        self.frame = p = tk.Frame(parent, bg=colors["BG"])
-        s, w = app.s, app.inner
         self.path, self.parent, self.items, self.picked, self.loaded = "", None, [], set(), False
         self.jobs, self.results = queue.Queue(), queue.Queue()
         self.temp = None
+        self.title_text, self.said = "Phone storage", ""
         threading.Thread(target=self._work, daemon=True).start()
 
-        self.back = tk.Label(p, text="", bg=colors["BG"], fg=colors["INK"], font=("Segoe Fluent Icons", 11), cursor="hand2")
+    def build(self, parent, w, h):
+        """Makes the widgets for this size. What is listed survives a rebuild."""
+        app, colors, s = self.app, self.c, self.app.s
+        self.w, self.h = w, h
+        self.frame = p = tk.Frame(parent, bg=colors["BG"])
+        self.back = tk.Label(p, text="", bg=colors["BG"], fg=colors["INK"] if self.parent is not None else colors["S3"],
+                             font=("Segoe Fluent Icons", 11), cursor="hand2")
         self.back.place(x=s(2), y=s(4), width=s(28), height=s(24))
         self.back.bind("<Button-1>", lambda e: self.parent is not None and self.go(self.parent))
-        self.title = app.text(p, "Phone storage", 12, semi=True)
+        self.title = app.text(p, self.title_text, 12, semi=True)
         self.title.place(x=s(36), y=s(4), width=s(w - 76))
         r = tk.Label(p, text="", bg=colors["BG"], fg=colors["DIM"], font=("Segoe Fluent Icons", 11), cursor="hand2")
         r.place(x=s(w - 30), y=s(4), width=s(28), height=s(24))
         r.bind("<Button-1>", lambda e: self.go(self.path))
-
+        self.list_h = h - 36 - 56
         self.cv = tk.Canvas(p, bg=colors["BG"], highlightthickness=0, bd=0, yscrollincrement=s(self.ROW) // 2)
-        self.cv.place(x=0, y=s(36), width=s(w), height=s(296))
+        self.cv.place(x=0, y=s(36), width=s(w), height=s(self.list_h))
         self.cv.bind("<MouseWheel>", lambda e: self.cv.yview_scroll(-int(e.delta / 60), "units"))
         self.cv.bind("<Button-1>", lambda e: self._click(e, bool(e.state & 0x4)))
         self.cv.bind("<Double-Button-1>", self._open_row)
         half = (w - 10) // 2
         self.save = app.button(p, "Save to laptop", self.save_picked, half, primary=True)
-        self.save.place(x=0, y=s(342))
-        app.button(p, "Open in Explorer", self.explorer, half).place(x=s(half + 10), y=s(342))
+        self.save.place(x=0, y=s(h - 46))
+        app.button(p, "Open in Explorer", self.explorer, half).place(x=s(half + 10), y=s(h - 46))
         self.message = app.text(p, "", color=colors["DIM"])
         self.save.enable(False)
+        self._draw()
+        self._say(self.said)
+        return p
 
     # ---- background work: the phone can take seconds, the window must not
     def _work(self):
@@ -102,21 +110,24 @@ class PhoneTab:
                             key=lambda i: (not i.get("d"), str(i["n"]).lower()))
         self.picked = set()
         name = str(v.get("name") or path.rstrip("/").rsplit("/", 1)[-1]) if path else "Phone storage"
-        self.title.config(text=name[:34])
+        self.title_text = name[:60]
+        self.title.config(text=self.title_text)
         self.back.config(fg=self.c["INK"] if self.parent is not None else self.c["S3"])
         self._draw()
         self._say("" if self.items else "This folder is empty. Drop files here to send them.")
 
     def _say(self, text):
+        self.said = text
         if text:
-            self.message.config(text=text, wraplength=self.app.s(self.app.inner - 20))
-            self.message.place(x=self.app.s(8), y=self.app.s(60), width=self.app.s(self.app.inner - 16))
+            self.message.config(text=text, wraplength=self.app.s(self.w - 20))
+            self.message.place(x=self.app.s(8), y=self.app.s(60), width=self.app.s(self.w - 16))
             self.message.lift()
         else:
             self.message.place_forget()
 
     def _draw(self):
-        c, s, w = self.cv, self.app.s, self.app.inner
+        c, s, w = self.cv, self.app.s, self.w
+        room = max(30, int((w - 60) / 7.2))
         c.delete("all")
         for n, i in enumerate(self.items):
             y = s(self.ROW) * n
@@ -126,12 +137,12 @@ class PhoneTab:
             c.create_text(s(22), y + s(22), text=ICONS[kind], font=("Segoe Fluent Icons", 13),
                           fill=self.c["ACCENT"] if kind == "dir" else self.c["INK"])
             name = str(i["n"])
-            c.create_text(s(46), y + s(14), text=name if len(name) < 42 else name[:26] + "…" + name[-13:], anchor="w",
+            c.create_text(s(46), y + s(14), text=name if len(name) <= room else name[:room - 14] + "…" + name[-13:], anchor="w",
                           fill=self.c["INK"], font=("Segoe UI Semibold", 10))
             when = datetime.fromtimestamp(i["m"]).strftime("%d %b %Y") if i.get("m") else ""
             note = when if i.get("d") else f"{self.app.size_text(int(i.get('s', 0)))}   {when}"
             c.create_text(s(46), y + s(31), text=note, anchor="w", fill=self.c["DIM"], font=("Segoe UI", 9))
-        c.config(scrollregion=(0, 0, s(w), max(s(self.ROW) * len(self.items), s(296))))
+        c.config(scrollregion=(0, 0, s(w), max(s(self.ROW) * len(self.items), s(self.list_h))))
         files = [n for n in self.picked if not self.items[n].get("d")]
         self.save.enable(bool(files), f"Save {len(files)} files" if len(files) > 1 else "Save to laptop")
 

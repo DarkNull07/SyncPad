@@ -49,7 +49,8 @@ the AAD. Max frame 4 MiB (64 KiB for the phone's frames on control).
 Plaintext starting with `{` is JSON, anything else is binary.
 
 First phone frame: `{"t":"hello","model":...}`. Host answers
-`{"t":"welcome","sid":u32,"name":...,"udp":47800,"h":hostId}`.
+`{"t":"welcome","sid":u32,"name":...,"udp":47800,"h":hostId,"ips":[...],"r":remoteId}`.
+`r` is the laptop's iroh endpoint id, or empty when it is not reachable from other networks.
 
 ## UDP packets
 
@@ -89,9 +90,11 @@ over a different transport. Totals and `q` start at zero for every control conne
 | link | cable: true when this network is the USB cable (tethering) |
 | record | ask for one shortcut pressed on the laptop's keyboard; recordstop cancels |
 | opt | pointer: "precise" or "raw"; smooth: 0..1; clipsync: bool |
+| remote | id: this phone's iroh endpoint id (64 hex), so the laptop lets it in from other networks |
 
 Host to phone: `pong`, `clip {s}`, `offer {id,name,size}`, `notice {s}`,
-`bye {why}`, `recorded {keys}` or `recorded {err}`, `ask {rid,op,path,...}`.
+`bye {why}`, `recorded {keys}` or `recorded {err}`, `ask {rid,op,path,...}`,
+`here {r}` (the laptop's iroh id, once known, if the welcome had none).
 
 If the phone sends nothing for 4 s, or the socket drops, the host releases every
 key and button that session was holding.
@@ -136,3 +139,16 @@ The laptop sends `ask {rid, op, path}` on the control channel. The phone opens a
 `{"t":"reply","rid",...}`, with `err` if it refuses. Ops: `list` (items), `get` (size, then data frames, `done`), `put` (then the
 laptop sends data frames and `done`, and the phone answers `saved`). The phone refuses everything unless its owner has
 turned this on, and only answers while SyncPad is open.
+
+## From another network
+
+The laptop runs an [iroh](https://www.iroh.computer) endpoint with ALPN `syncpad/1`
+and a fixed key, so its id never changes. A phone dials that id; iroh resolves it
+through its address lookup, punches a direct UDP path when the routers allow,
+uses a relay otherwise, and switches to direct as soon as it can.
+
+The laptop accepts only endpoints whose id a paired phone sent with `remote`.
+Everything inside is this same protocol, unchanged: each TCP connection the phone
+opens becomes one bidirectional QUIC stream, and each UDP packet one QUIC
+datagram. The laptop bridges them to its own server on loopback, from
+127.0.0.2, which is how it tells these sessions apart.

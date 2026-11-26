@@ -44,7 +44,8 @@ class Config:
         self.lock = threading.RLock()
         self.host_id = secrets.token_bytes(8)
         self.devices = {}   # id -> {"key": bytes, "name": str, "seen": float}
-        self.settings = {"usb": True, "clipsync": False, "save_dir": ""}
+        self.settings = {"usb": True, "clipsync": False, "save_dir": "", "remote": True}
+        self._remote_key = None
         self._load()
         self.new_pairing()
 
@@ -61,13 +62,19 @@ class Config:
                 key = _dpapi(bytes.fromhex(v["key"]), False)
             except (OSError, ValueError):
                 continue   # config copied from another Windows account
-            self.devices[bytes.fromhex(d)] = {"key": key, "name": v["name"], "seen": v["seen"]}
+            self.devices[bytes.fromhex(d)] = {"key": key, "name": v["name"], "seen": v["seen"], "remote": v.get("remote", "")}
+        try:
+            self._remote_key = _dpapi(bytes.fromhex(raw["remote_key"]), False) if raw.get("remote_key") else None
+        except (OSError, ValueError):
+            self._remote_key = None
 
     def save(self):
         with self.lock:
             data = {"host_id": self.host_id.hex(), "settings": self.settings, "devices": {
-                d.hex(): {"key": _dpapi(v["key"], True).hex(), "name": v["name"], "seen": v["seen"]}
+                d.hex(): {"key": _dpapi(v["key"], True).hex(), "name": v["name"], "seen": v["seen"], "remote": v.get("remote", "")}
                 for d, v in self.devices.items()}}
+            if self._remote_key:
+                data["remote_key"] = _dpapi(self._remote_key, True).hex()
             self.folder.mkdir(parents=True, exist_ok=True)
             tmp = self.path.with_suffix(".tmp")
             tmp.write_text(json.dumps(data, indent=1), "utf-8")
@@ -110,6 +117,31 @@ class Config:
                 self.devices[device_id].update(name=name, seen=time.time())
             self.save()
             return new
+
+    # ---- reaching this laptop from other networks
+    def remote_secret(self) -> bytes:
+        """This laptop's iroh identity. Kept, so paired phones can always find it."""
+        with self.lock:
+            if not self._remote_key:
+                self._remote_key = secrets.token_bytes(32)
+                self.save()
+            return self._remote_key
+
+    def set_remote(self, device_id: bytes, endpoint: str):
+        """A phone tells us its iroh id over its encrypted, paired connection."""
+        endpoint = str(endpoint).strip().lower()
+        if len(endpoint) != 64 or any(c not in "0123456789abcdef" for c in endpoint):
+            return
+        with self.lock:
+            d = self.devices.get(device_id)
+            if d is not None and d.get("remote") != endpoint:
+                d["remote"] = endpoint
+                self.save()
+
+    def remote_allowed(self, endpoint: str) -> bool:
+        with self.lock:
+            return bool(self.settings.get("remote", True)) and any(
+                v.get("remote") == endpoint for v in self.devices.values())
 
     def forget(self, device_id: bytes):
         with self.lock:

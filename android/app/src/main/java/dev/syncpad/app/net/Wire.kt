@@ -136,7 +136,7 @@ class UdpCrypto(private val sid: Int, sendKey: ByteArray, recvKey: ByteArray) {
 /** What a pairing link carries, and what the phone remembers about a laptop. */
 data class Laptop(
     val hostId: String, val deviceId: String, val key: String, val name: String, val port: Int,
-    val ips: List<String>,
+    val ips: List<String>, val remote: String = "",
 ) {
     companion object {
         fun parse(link: String): Laptop? = runCatching {

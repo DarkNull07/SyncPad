@@ -75,13 +75,14 @@
 
 <section class="connect" id="connect">
   <div class="pin">
-    <header><h2>Three ways in. Switch whenever.</h2></header>
-    <div class="word" aria-hidden="true"><span>USB</span><span>Wi-Fi</span><span>Bluetooth</span></div>
+    <header><h2>Near or far. It picks the best way.</h2></header>
+    <div class="word" aria-hidden="true"><span>USB</span><span>Wi-Fi</span><span>Bluetooth</span><span>Anywhere</span></div>
     <canvas class="wire" aria-hidden="true"></canvas>
     <ol class="modes">
       <li class="on"><h3>USB</h3><p>The smooth one. About 2 ms to the laptop, on any network or none.</p></li>
       <li><h3>Wi-Fi</h3><p>No cable, every feature. It finds your laptop and comes back by itself.</p></li>
       <li><h3>Bluetooth</h3><p>A real mouse, keyboard and game controller. Nothing to install on the computer.</p></li>
+      <li><h3>Anywhere</h3><p>Another Wi-Fi, or mobile data. It finds your laptop over the internet and goes direct when the networks allow.</p></li>
     </ol>
     <p class="fine">Delay as shown by the app on a tested phone. Yours depends on your hardware and network.</p>
   </div>
@@ -145,15 +146,15 @@
   <h2>It can control your computer, so it had better be careful.</h2>
   <dl>
     <div><dt>Encrypted end to end</dt><dd>Keystrokes, files and screen travel under AES-256-GCM with fresh keys for every connection. Bluetooth uses Bluetooth's own encryption.</dd></div>
-    <div><dt>Nothing in the middle</dt><dd>No account, no server, no analytics in the apps. Your phone talks to your laptop and nowhere else.</dd></div>
-    <div><dt>One key per phone</dt><dd>Exchanged by the pairing code and protected by Windows on the laptop. Press Forget and that phone is locked out.</dd></div>
+    <div><dt>Nothing in the middle</dt><dd>No account and no analytics. Your phone talks to your laptop directly. Away from home, free <a href="https://www.iroh.computer">iroh</a> servers help them find each other and may pass along encrypted traffic they cannot read. Update checks ask GitHub for the newest version number, and you can turn them off.</dd></div>
+    <div><dt>One key per phone</dt><dd>Exchanged by the pairing code and protected by Windows on the laptop. Only phones paired at home can reach it from elsewhere. Press Forget and that phone is locked out.</dd></div>
     <div><dt>You can see it</dt><dd>Windows notifies you when a phone pairs, and SyncPad says when a phone is viewing your screen or recording a shortcut.</dd></div>
     <div><dt>Open source</dt><dd>MIT licensed, with the protocol written down and the tests included. <a href="https://github.com/DarkNull07/SyncPad">Read the code</a>.</dd></div>
   </dl>
   <h3>What it does not do</h3>
   <ul>
     <li>It is for Android 9 or newer and Windows 10 or 11. There is no iPhone or Mac version.</li>
-    <li>It works when both devices are on the same network, a cable or Bluetooth. Not across the internet.</li>
+    <li>From another network it goes direct when both routers allow. Otherwise it uses a relay, which is slower, and the free relays are shared and rate limited.</li>
     <li>Windows keeps some things to itself: Win+L, Ctrl+Alt+Del, and programs running as administrator unless SyncPad is too.</li>
     <li>Some phone hotspots pause their radio, which no app can fix. SyncPad tells you when it happens.</li>
     <li>There is no forward secrecy yet. Someone who records your traffic and later steals the key could read it.</li>
@@ -184,7 +185,8 @@
 
 <section class="faq">
   <h2>Good to know</h2>
-  <details><summary>Which connection should I use?</summary><p>USB when you want it smoothest. Bluetooth when wireless, or on a computer you cannot install things on. Wi-Fi when you want files or the screen without a cable. In Automatic, SyncPad picks for you.</p></details>
+  <details><summary>Which connection should I use?</summary><p>USB when you want it smoothest. Bluetooth when wireless, or on a computer you cannot install things on. Wi-Fi when you want files or the screen without a cable. In Automatic, SyncPad picks for you, and uses the internet only when nothing nearby answers.</p></details>
+  <details><summary>Does it work when the phone is not on my Wi-Fi?</summary><p>Yes. Pair at home once, then SyncPad reaches the laptop from another Wi-Fi or mobile data, as long as the laptop is on and online. It goes direct when the networks allow, which is about as quick as the internet between them. Otherwise it goes through a relay and says so. You can turn this off on either device.</p></details>
   <details><summary>It stays on Searching over Wi-Fi.</summary><p>Campus, hotel and guest networks often stop devices from seeing each other. Connect the laptop to your phone's hotspot, or use USB or Bluetooth. Also check that Windows Firewall allows SyncPad on that kind of network.</p></details>
   <details><summary>USB needs debugging turned on. Why?</summary><p>SyncPad reaches the laptop through Android's debugging link, which needs adb on the laptop. USB tethering also works and needs no debugging.</p></details>
   <details><summary>Does it work on the lock screen?</summary><p>Over Bluetooth, yes: to Windows it is an ordinary mouse. Over USB and Wi-Fi, Windows does not let programs reach the lock screen.</p></details>

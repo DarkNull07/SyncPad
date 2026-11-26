@@ -1,12 +1,21 @@
 """Makes a release. One version number, changed everywhere at once.
 
-    host/.venv/Scripts/python tools/release.py 0.2.1 "What changed" "And this"
-    host/.venv/Scripts/python tools/release.py 0.2.1 --publish
+    host/.venv/Scripts/python tools/release.py 0.3.0 "What changed" --ci
+    host/.venv/Scripts/python tools/release.py 0.3.0 "What changed" "And this"
+    host/.venv/Scripts/python tools/release.py 0.3.0 --publish
 
-The first form bumps the version in both apps, the changelog and the website,
-runs every test, builds and signs both downloads, checks them, and commits. It
-publishes nothing. The second pushes that commit, creates the GitHub release
-and checks the live site and its downloads.
+With --ci (the usual way): bumps the version in both apps and the changelog,
+runs the laptop tests, commits, tags v0.3.0 and pushes. GitHub Actions then
+builds, signs, checks and publishes both downloads and updates the website, so
+nothing is built on this computer. See .github/workflows/release.yml.
+
+Without it, everything happens here instead: the same bump, then every test,
+both downloads built, signed and checked, the website updated, and a commit.
+That publishes nothing; --publish then pushes, releases and checks the live site.
+
+--build is what the workflow runs: it builds and checks the version already in
+the source, without committing. --site then writes those downloads' sizes and
+checksums, and the changelog, into the website.
 """
 import datetime
 import hashlib
@@ -24,6 +33,8 @@ ROOT = Path(__file__).resolve().parent.parent
 HOST, ANDROID, WEB, OUT = ROOT / "host", ROOT / "android", ROOT / "web", ROOT / "dist" / "release"
 REPO, SITE = "DarkNull07/SyncPad", "https://syncpad-dark.vercel.app"
 ASSETS = ["SyncPad.exe", "SyncPad.apk", "SyncPad-windows.zip", "SHA256SUMS.txt"]
+SMARTSCREEN = ("The Windows app is not signed with a paid certificate, so SmartScreen may warn. Check the file against SHA256SUMS.txt, "
+               "then choose More info, Run anyway.\n")
 # Anything here must never be published. Checked in the source and inside the downloads.
 PRIVATE = re.compile(rb"(?i)@gmail\.|@outlook\.|[A-Z]:\\Users\\(?!Public)[A-Za-z]|gh[pousr]_[A-Za-z0-9]{20}|BEGIN [A-Z ]*PRIVATE KEY")
 NEVER = re.compile(r"(^|/)(Ideas\.txt|\.env.*|.*\.(jks|keystore)|signing\.properties)$|^(\.claude|\.vercel|dist)/")
@@ -74,7 +85,7 @@ def check_tree():
             m = pat and pat.search(b)
             if m:
                 die(f"private text in {f}: {m.group()[:40]!r}")
-    for mail in set(run("git", "log", "--format=%ae", "main").split()):
+    for mail in set(run("git", "log", "--format=%ae", "HEAD").split()):
         if not mail.endswith("@users.noreply.github.com"):
             die(f"a commit on main uses a real address: {mail[:2]}***")
 
@@ -159,6 +170,17 @@ def prepare(version, notes):
 
 
 def build(version, notes):
+    date = bump(version, notes)
+    make(version, date)
+    shutil.rmtree(HOST / "build", ignore_errors=True)
+    run("git", "add", "-A")
+    check_tree()
+    run("git", "commit", "-m", f"SyncPad {version}", "-m", "\n".join(f"- {n}" for n in notes), "-m", "Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>")
+    print(f"ready: {version}. Nothing is published. Next: tools/release.py {version} --publish")
+
+
+def bump(version, notes):
+    """Checks, tests the laptop app, then sets the version everywhere. Returns the date."""
     if not re.fullmatch(r"\d+\.\d+\.\d+", version):
         die("the version looks like 1.2.3")
     if tuple(map(int, version.split("."))) <= tuple(map(int, current().split("."))):
@@ -181,6 +203,12 @@ def build(version, notes):
     log = ROOT / "CHANGELOG.md"
     head, _, rest = log.read_text("utf-8").partition("\n## ")
     log.write_text(f"{head.rstrip()}\n\n## {version}, {date}\n\n" + "".join(f"- {n}\n" for n in notes) + "\n## " + rest, "utf-8", newline="\n")
+    return date
+
+
+def make(version, date):
+    """Tests, builds, signs and checks both downloads, then puts them on the website."""
+    py = HOST / ".venv/Scripts/python.exe"
     print("phone app")
     run(ANDROID / "gradlew.bat", "--console=plain", "-Ppublic", ":app:testDebugUnitTest", ":app:assembleRelease", cwd=ANDROID)
     OUT.mkdir(parents=True, exist_ok=True)
@@ -195,17 +223,50 @@ def build(version, notes):
     (OUT / "SHA256SUMS.txt").write_text("".join(f"{sha(n)}  {n}\n" for n in ASSETS[:3]), "utf-8", newline="\n")
     check_downloads()
     defender = Path(os.environ.get("ProgramFiles", r"C:\Program Files")) / "Windows Defender/MpCmdRun.exe"
-    if defender.exists():
+    if defender.exists() and not os.environ.get("CI"):          # build machines often run without it
         for n in ASSETS[:2]:
             if "no threats" not in run(defender, "-Scan", "-ScanType", "3", "-File", OUT / n, "-DisableRemediation"):
                 die(f"Windows Defender has something to say about {n}")
         print("  Defender: no threats")
     update_site(version, date)
-    shutil.rmtree(HOST / "build", ignore_errors=True)
-    run("git", "add", "-A")
+
+
+def push(*refs):
+    run("git", "-c", "credential.helper=", "-c", f"credential.helper=!'{gh()}' auth git-credential", "push", "origin", *refs)
+
+
+def ci(version, notes):
+    """Bump, commit and tag here; GitHub Actions does the rest."""
+    touched = [HOST / "syncpad/__init__.py", ANDROID / "app/build.gradle.kts", ROOT / "CHANGELOG.md"]
+    before = {p: p.read_bytes() for p in touched}
+    try:
+        if run("git", "status", "--porcelain").strip():
+            die("commit or stash the changes first, so the release holds only what is committed")
+        bump(version, notes)
+        run("git", "add", *[str(p.relative_to(ROOT)) for p in touched])
+        check_tree()
+        run("git", "commit", "-m", f"SyncPad {version}", "-m", "\n".join(f"- {n}" for n in notes), "-m", "Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>")
+    except BaseException:
+        for p, b in before.items():
+            p.write_bytes(b)
+        raise
+    run("git", "tag", "-a", f"v{version}", "-m", f"SyncPad {version}")
+    push("main", f"refs/tags/v{version}")
+    print(f"pushed v{version}. GitHub Actions builds and publishes it: https://github.com/{REPO}/actions")
+
+
+def ci_build(version):
+    """Run by the workflow: build what the tag holds."""
+    if current() != version:
+        die(f"the source says {current()}, the tag says {version}")
+    m = re.search(rf"^## {re.escape(version)}, (.*)$", (ROOT / "CHANGELOG.md").read_text("utf-8"), re.M)
+    if not m:
+        die("the changelog has no entry for this version")
     check_tree()
-    run("git", "commit", "-m", f"SyncPad {version}", "-m", "\n".join(f"- {n}" for n in notes), "-m", "Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>")
-    print(f"ready: {version}. Nothing is published. Next: tools/release.py {version} --publish")
+    print("  laptop:", run(HOST / ".venv/Scripts/python.exe", "-m", "pytest", "-q", cwd=HOST).strip().splitlines()[-1])
+    make(version, m.group(1).strip())
+    notes = re.search(rf"^## {re.escape(version)}, .*?\n\n(.*?)(?=^## |\Z)", (ROOT / "CHANGELOG.md").read_text("utf-8"), re.S | re.M).group(1).strip()
+    (OUT / "notes.md").write_text(notes + "\n\n" + SMARTSCREEN, "utf-8", newline="\n")
 
 
 def gh():
@@ -231,12 +292,11 @@ def publish(version):
             die(f"the site has another checksum for {n}")
     notes = re.search(rf"^## {re.escape(version)}, .*?\n\n(.*?)(?=^## |\Z)", (ROOT / "CHANGELOG.md").read_text("utf-8"), re.S | re.M).group(1).strip()
     body = OUT / "notes.md"
-    body.write_text(notes + "\n\nThe Windows app is not signed with a paid certificate, so SmartScreen may warn. Check the file against SHA256SUMS.txt, "
-                    "then choose More info, Run anyway.\n", "utf-8", newline="\n")
+    body.write_text(notes + "\n\n" + SMARTSCREEN, "utf-8", newline="\n")
     print("release")
     # The files go up first as a draft, so the site never points at something missing.
     run(gh(), "release", "create", f"v{version}", "--repo", REPO, "--draft", "--title", f"SyncPad {version}", "--notes-file", body, "--target", "main", *[OUT / n for n in ASSETS])
-    run("git", "-c", "credential.helper=", "-c", f"credential.helper=!'{gh()}' auth git-credential", "push", "origin", "main")
+    push("main")
     run(gh(), "release", "edit", f"v{version}", "--repo", REPO, "--draft=false", "--latest")
     print("checking the live site")
     end = time.time() + 300
@@ -263,7 +323,18 @@ def main():
     if not a:
         sys.exit(__doc__)
     sys.path.insert(0, str(HOST))
-    publish(a[0]) if "--publish" in a else prepare(a[0], a[1:])
+    notes = [x for x in a[1:] if not x.startswith("--")]
+    if "--publish" in a:
+        publish(a[0])
+    elif "--build" in a:
+        ci_build(a[0])
+    elif "--site" in a:
+        m = re.search(rf"^## {re.escape(a[0])}, (.*)$", (ROOT / "CHANGELOG.md").read_text("utf-8"), re.M)
+        update_site(a[0], m.group(1).strip() if m else "")
+    elif "--ci" in a:
+        ci(a[0], notes)
+    else:
+        prepare(a[0], notes)
 
 
 if __name__ == "__main__":

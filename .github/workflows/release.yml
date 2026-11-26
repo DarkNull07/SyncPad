@@ -1,0 +1,115 @@
+# Publishes a release from a tag, so nothing has to be built on a personal computer.
+#
+#   host/.venv/Scripts/python tools/release.py 0.3.0 "What changed" --ci
+#
+# bumps the version, commits, tags v0.3.0 and pushes; this then runs every test,
+# builds and signs SyncPad.exe, SyncPad.apk and the zip, checks them for private
+# text, creates the GitHub release and updates the website's downloads.
+#
+# Secrets (Settings, Secrets and variables, Actions):
+#   SYNCPAD_KEYSTORE      the APK signing key, base64
+#   SYNCPAD_KEY_ALIAS     its alias
+#   SYNCPAD_KEY_PASSWORD  its password
+#   SYNCPAD_PRIVATE_WORDS optional: words that must never appear in a download, one per line
+
+name: Release
+
+on:
+  push:
+    tags: ["v*.*.*"]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Existing tag to build again, for example v0.3.0"
+        required: true
+
+permissions:
+  contents: write          # the release, and the website's download details
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+jobs:
+  release:
+    runs-on: windows-latest
+    timeout-minutes: 60
+    env:
+      CI: "1"
+      TAG: ${{ github.event.inputs.tag || github.ref_name }}
+      GH_TOKEN: ${{ github.token }}
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.inputs.tag || github.ref }}
+          fetch-depth: 0
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.14"
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: |
+            21
+            17
+
+      - name: Laptop app tools
+        run: |
+          python -m venv host/.venv
+          host/.venv/Scripts/python -m pip install -q -r host/requirements.txt pytest pyinstaller
+
+      - name: Signing key and private words
+        env:
+          KEYSTORE: ${{ secrets.SYNCPAD_KEYSTORE }}
+          ALIAS: ${{ secrets.SYNCPAD_KEY_ALIAS }}
+          PASSWORD: ${{ secrets.SYNCPAD_KEY_PASSWORD }}
+          WORDS: ${{ secrets.SYNCPAD_PRIVATE_WORDS }}
+        run: |
+          [ -n "$KEYSTORE" ] || { echo "::error::SYNCPAD_KEYSTORE is not set"; exit 1; }
+          mkdir -p ~/.syncpad
+          echo "$KEYSTORE" | base64 -d > ~/.syncpad/release.jks
+          store="$(cygpath -m ~/.syncpad/release.jks)"
+          printf 'store=%s\nalias=%s\npassword=%s\n' "$store" "$ALIAS" "$PASSWORD" > ~/.syncpad/signing.properties
+          printf '%s\n' "$WORDS" > ~/.syncpad/private-words.txt
+          echo "sdk.dir=$(cygpath -m "$ANDROID_HOME")" > android/local.properties
+
+      - name: Test, build and check
+        run: host/.venv/Scripts/python tools/release.py "${TAG#v}" --build
+
+      # Code signing for SyncPad.exe goes here, before the checksums are final: see CODE_SIGNING.md.
+
+      - name: Publish the release
+        run: |
+          v="${TAG#v}"
+          cd dist/release
+          gh release create "$TAG" --repo "$GITHUB_REPOSITORY" --verify-tag --title "SyncPad $v" --notes-file notes.md --latest \
+            SyncPad.exe SyncPad.apk SyncPad-windows.zip SHA256SUMS.txt
+
+      - name: Website downloads
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git fetch origin main
+          git checkout -B site origin/main
+          host/.venv/Scripts/python tools/release.py "${TAG#v}" --site
+          git add web/index.html
+          git diff --cached --quiet || git commit -m "Website: SyncPad ${TAG#v} downloads"
+          git push origin HEAD:main
+
+      - name: Downloads on the site
+        run: |
+          for i in $(seq 1 40); do
+            ok=$(curl -sL "https://syncpad-dark.vercel.app/?$i" | grep -c "$(cut -c1-12 dist/release/SHA256SUMS.txt | head -1)" || true)
+            [ "$ok" -gt 0 ] && break
+            sleep 10
+          done
+          curl -sL -o got.exe https://syncpad-dark.vercel.app/download/windows
+          curl -sL -o got.apk https://syncpad-dark.vercel.app/download/android
+          sha256sum got.exe got.apk
+          grep -q "$(sha256sum got.exe | cut -c1-64)" dist/release/SHA256SUMS.txt
+          grep -q "$(sha256sum got.apk | cut -c1-64)" dist/release/SHA256SUMS.txt

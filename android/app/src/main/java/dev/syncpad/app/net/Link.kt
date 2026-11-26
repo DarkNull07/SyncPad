@@ -58,7 +58,22 @@ class Link(
     private val extraHosts: () -> List<String> = { emptyList() },
     private val discover: Boolean = true,
     private val urgent: () -> Unit = {},
+    private val tunnel: Tunnel? = null,
 ) {
+    /** A way to the laptop from another network. See [IrohTunnel]. */
+    interface Tunnel {
+        /** This phone's id there, empty until known. */
+        val id: String
+        /** Connects to the laptop with that id; returns the loopback port that reaches it. */
+        fun open(laptop: String, timeoutMs: Long): Int?
+        fun route(): String?
+        fun close()
+    }
+
+    /** Off: only nearby ways are used. */
+    @Volatile var remote = true
+        set(v) { field = v; if (!v) live?.let { if (it.remote) it.close() } }
+
     @Volatile var onStatus: (Status) -> Unit = {}
     @Volatile var onMessage: (JSONObject) -> Unit = {}
     @Volatile var onIps: (Laptop) -> Unit = {}
@@ -78,7 +93,7 @@ class Link(
     private fun allowed(ip: String) = when (mode) {
         Mode.USB -> rank(ip) < 2
         Mode.WIFI -> rank(ip) == 2
-        else -> true
+        else -> ip != REMOTE || remote
     }
 
     @Volatile var laptop: Laptop? = null
@@ -91,10 +106,10 @@ class Link(
     private val random = SecureRandom()
     private val wake = Object()
 
-    /** Lower is better: the adb cable, then a tethering cable, then anything else. */
-    private fun rank(ip: String) = if (ip == LOOPBACK) 0 else if (cableTo(ip)) 1 else 2
+    /** Lower is better: the adb cable, then a tethering cable, then the network, then the internet. */
+    private fun rank(ip: String) = if (ip == LOOPBACK) 0 else if (ip == REMOTE) 3 else if (cableTo(ip)) 1 else 2
 
-    private class Raw(val socket: Socket, val ip: String, val clientNonce: ByteArray, val hostNonce: ByteArray)
+    private class Raw(val socket: Socket, val ip: String, val port: Int, val clientNonce: ByteArray, val hostNonce: ByteArray)
 
     // ---- lifecycle
     @Synchronized
@@ -143,7 +158,7 @@ class Link(
             synchronized(totals) { totals.fill(0); fraction.fill(0f); q = 0 }
             live = l
             if (running) {
-                set(Status(Phase.CONNECTED, l.via))
+                set(Status(Phase.CONNECTED, l.label()))
                 l.serve()
             }
             live = null
@@ -183,6 +198,10 @@ class Link(
             }
             val left = pending
             pool.execute { repeat(left) { race.poll(3, TimeUnit.SECONDS)?.let { f -> runCatching { f.get()?.socket?.close() } } } }
+            if (winner == null && tunnel != null && remote && to.remote.isNotEmpty() && allowed(REMOTE)) {
+                val port = tunnel.open(to.remote, 9000)
+                if (port != null) winner = open(REMOTE, port, Wire.CONTROL, 5000)
+            }
             return winner?.let { w ->
                 runCatching { greet(w, to) }.getOrElse { w.socket.close(); null }
             }
@@ -206,7 +225,7 @@ class Link(
             val reply = ByteArray(20)
             DataInputStream(s.getInputStream()).readFully(reply)
             if (!reply.copyOf(4).contentEquals(Wire.MAGIC)) throw IOException("not SyncPad")
-            return Raw(s, host, cn, reply.copyOfRange(4, 20))
+            return Raw(s, host, port, cn, reply.copyOfRange(4, 20))
         } catch (_: Exception) {
             runCatching { s.close() }
             return null
@@ -227,9 +246,10 @@ class Link(
         val ips = LinkedHashSet<String>()
         if (r.ip != LOOPBACK) ips += r.ip
         w.optJSONArray("ips")?.let { a -> for (i in 0 until a.length()) ips += a.getString(i) }
-        val fresh = to.copy(name = w.optString("name", to.name), ips = (ips + to.ips).take(8))
+        val fresh = to.copy(name = w.optString("name", to.name), ips = (ips + to.ips).take(8), remote = w.optString("r").ifEmpty { to.remote })
         if (fresh != to) { laptop = fresh; onIps(fresh) }
-        return Live(ch, keys, w.getLong("sid").toInt(), r.ip, w.getInt("udp"))
+        // Through the tunnel, UDP goes to the tunnel's own port.
+        return Live(ch, keys, w.getLong("sid").toInt(), r.ip, r.port, if (r.ip == REMOTE) r.port else w.getInt("udp"))
     }
 
     private fun discovered(to: Laptop): String? = runCatching {
@@ -260,12 +280,38 @@ class Link(
     /** A second encrypted connection, for screen frames or a file. Blocking. */
     fun openChannel(kind: Int): Channel? {
         val to = laptop ?: return null
-        val ip = live?.ip ?: return null
-        val raw = open(ip, to.port, kind, 4000) ?: return null
+        val l = live ?: return null
+        val raw = open(l.ip, l.port, kind, 4000) ?: return null
         return runCatching {
             raw.socket.soTimeout = 30_000
             channel(raw, to).first.also { it.recv() }
         }.getOrElse { raw.socket.close(); null }
+    }
+
+    /** Tells the laptop this phone's id, so it can let this phone in from elsewhere. Only over a paired link. */
+    fun tellRemote() {
+        val id = tunnel?.id.orEmpty()
+        if (id.isNotEmpty() && remote) json(JSONObject().put("t", "remote").put("id", id))
+    }
+
+    /** Whether the laptop answers nearby, without disturbing the current link. */
+    private fun nearby(to: Laptop): Boolean {
+        val hosts = (listOf(LOOPBACK) + to.ips + extraHosts()).distinct().filter { allowed(it) }
+        val pool = Executors.newCachedThreadPool { Thread(it).apply { isDaemon = true } }
+        try {
+            val race = ExecutorCompletionService<Raw?>(pool)
+            hosts.forEach { h -> race.submit { open(h, to.port, Wire.CONTROL, 700) } }
+            if (discover) race.submit { discovered(to)?.takeIf { allowed(it) }?.let { open(it, to.port, Wire.CONTROL, 700) } }
+            var found = false
+            repeat(hosts.size + if (discover) 1 else 0) {
+                val r = race.poll(1500, TimeUnit.MILLISECONDS) ?: return found
+                runCatching { r.get() }.getOrNull()?.let { it.socket.close(); found = true }
+                if (found) return true
+            }
+            return found
+        } finally {
+            pool.shutdownNow()
+        }
     }
 
     // ---- input
@@ -306,10 +352,14 @@ class Link(
     fun json(m: JSONObject) { live?.queue?.add(m.toString().toByteArray()) }
 
     // ---- an established connection
-    private inner class Live(val ch: Channel, keys: SessionKeys, sid: Int, val ip: String, udpPort: Int) {
+    private inner class Live(val ch: Channel, keys: SessionKeys, sid: Int, val ip: String, val port: Int, udpPort: Int) {
         val usb = ip == LOOPBACK
-        private val cable = !usb && cableTo(ip)
-        val via = if (usb || cable) "USB" else "Wi-Fi"
+        val remote = ip == REMOTE
+        private val cable = !usb && !remote && cableTo(ip)
+        val via = if (usb || cable) "USB" else if (remote) "Internet" else "Wi-Fi"
+
+        /** Through a relay is slower, so say so. */
+        fun label() = if (remote && tunnel?.route() == "relay") "Internet, relayed" else via
         val queue = LinkedBlockingQueue<ByteArray>()
         private val closed = AtomicBoolean()
         private val lock = Object()
@@ -345,6 +395,7 @@ class Link(
         fun serve() {
             queue.add(options.toString().toByteArray())
             if (cable) queue.add(JSONObject().put("t", "link").put("cable", true).toString().toByteArray())
+            tellRemote()
             thread(name = "syncpad-tx") { runCatching { txLoop() }; close() }
             thread(name = "syncpad-state") { urgent(); runCatching { stateLoop() } }
             if (udp != null) thread(name = "syncpad-urx") { urgent(); runCatching { urxLoop() } }
@@ -356,6 +407,10 @@ class Link(
                     if (d.isEmpty() || d[0] != '{'.code.toByte()) continue
                     val m = runCatching { JSONObject(String(d)) }.getOrNull() ?: continue
                     if (m.optString("t") == "pong") { if (!udpOk()) report(m.optLong("ts")) }
+                    else if (m.optString("t") == "here") laptop?.let { to ->
+                        val r = m.optString("r")
+                        if (r.isNotEmpty() && r != to.remote) to.copy(remote = r).also { laptop = it; onIps(it) }
+                    }
                     else runCatching { onMessage(m) }
                 }
             } catch (_: IOException) {
@@ -369,7 +424,7 @@ class Link(
             val ms = ((System.nanoTime() - sentNs) / 1_000_000.0)
             val s = synchronized(steady) {
                 steady.add(if (ms < 1) 1 else Math.round(ms).toInt())
-                Status(Phase.CONNECTED, via, steady.typical(), udpOk(), steady.unsteady && !usb && !cable)
+                Status(Phase.CONNECTED, label(), steady.typical(), udpOk(), steady.unsteady && !usb && !cable && !remote)
             }
             if (!closed.get()) set(s)
         }
@@ -435,8 +490,12 @@ class Link(
                     val p = synchronized(crypto) { crypto.seal(body) }
                     runCatching { u.send(DatagramPacket(p, p.size)) }
                 }
+                // Through the internet, check now and then whether the laptop is nearby again.
+                if (full && remote && ++n % 5 == 0) laptop?.let { to ->
+                    if (nearby(to)) { close(); return }
+                }
                 // On Wi-Fi, look for a cable now and then. A tethering cable is not worth leaving for adb.
-                if (full && mode != Mode.WIFI && !usb && !cable && ++n % 3 == 0) laptop?.let { to ->
+                if (full && mode != Mode.WIFI && !usb && !cable && !remote && ++n % 3 == 0) laptop?.let { to ->
                     open(LOOPBACK, to.port, Wire.CONTROL, 300)?.let { it.socket.close(); close(); return }
                     if (discover && n % 6 == 0 && cableUp()) discovered(to)?.takeIf { rank(it) == 1 }?.let { found ->
                         laptop = to.copy(ips = (listOf(found) + to.ips).distinct().take(8))
@@ -451,6 +510,7 @@ class Link(
 
     companion object {
         const val LOOPBACK = "127.0.0.1"
+        const val REMOTE = IrohTunnel.HERE
         /** Tests have no second machine; on a phone loopback means adb, which has no UDP. */
         @JvmField var udpOnLoopback = false
         private val STOP = ByteArray(0)

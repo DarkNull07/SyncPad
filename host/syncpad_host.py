@@ -14,6 +14,8 @@ def main():
     ap.add_argument("--port", type=int)
     ap.add_argument("--config", help="settings folder")
     ap.add_argument("--local-only", action="store_true", help="listen on 127.0.0.1 only (USB)")
+    ap.add_argument("--no-remote", action="store_true", help="not reachable from other networks")
+    ap.add_argument("--remote", action="store_true", help="reachable from other networks even with --local-only")
     a = ap.parse_args()
 
     from syncpad import wire
@@ -37,6 +39,11 @@ def main():
         else:
             ctypes.windll.user32.MessageBoxW(None, msg, "SyncPad", 0x40)
         return 1
+    if a.remote or not (a.local_only or a.no_remote):
+        from syncpad.remote import Remote
+        server.remote = Remote(config, server.port, on_change=lambda: server.on_change())
+        server.remote.on_ready = server.remote_ready
+        server.remote.start()
 
     if a.console:
         print(config.pair_link(server.port), flush=True)

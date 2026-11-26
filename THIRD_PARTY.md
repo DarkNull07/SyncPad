@@ -14,6 +14,7 @@ SyncPad itself is MIT licensed (see `LICENSE`). It is built with, and its downlo
 | segno | BSD-3-Clause |
 | pystray | LGPL-3.0 |
 | six | MIT |
+| iroh (iroh-ffi and its Rust dependencies) | MIT or Apache-2.0 |
 | Tcl/Tk | Tcl/Tk License |
 | PyInstaller bootloader | GPL-2.0 with an exception that allows any licence for the bundled app |
 
@@ -27,3 +28,5 @@ you can rebuild the app with a modified pystray. The text of the LGPL is at <htt
 | Kotlin, kotlinx.coroutines | Apache-2.0 |
 | AndroidX, Jetpack Compose, Material Icons | Apache-2.0 |
 | ZXing, zxing-android-embedded | Apache-2.0 |
+| iroh (iroh-ffi, iroh-android and their Rust dependencies) | MIT or Apache-2.0 |
+| JNA | Apache-2.0 or LGPL-2.1 (used under Apache-2.0) |

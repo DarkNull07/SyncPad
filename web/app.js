@@ -260,13 +260,14 @@
     addEventListener("resize", place);
   }
 
-  // ---- three connections: one line that becomes a cable, a wave, then a trail of dots
+  // ---- the connections: one line that becomes a cable, a wave, a trail of dots, then an arc over the internet
   {
     const sec = $(".connect"), c = $(".wire"), items = $$(".modes li"), words = $$(".word span");
     let pos = 0, goal = 0;
+    const N = items.length;
     items.forEach((li, i) => li.addEventListener("click", () => {
       const r = sec.getBoundingClientRect();
-      glideTo(scrollY + r.top + (r.height - innerHeight) * (i + .5) / 3, 170);
+      glideTo(scrollY + r.top + (r.height - innerHeight) * (i + .5) / N, 170);
     }));
     const shot = new Image();
     shot.src = "/img/pad.webp";
@@ -288,17 +289,18 @@
     };
     part(sec, (now) => {
       const r = sec.getBoundingClientRect(), p = clamp(-r.top / Math.max(1, r.height - innerHeight));
-      const idx = Math.min(2, Math.floor(p * 3));
-      goal = calm ? 1 : clamp(p * 3 - .5, 0, 2);
+      const idx = Math.min(N - 1, Math.floor(p * N));
+      goal = calm ? 1 : clamp(p * N - .5, 0, N - 1);
       pos += (goal - pos) * (calm ? 1 : .14);
-      items.forEach((li, i) => { li.classList.toggle("on", i === idx); li.firstElementChild.style.setProperty("--p", `${clamp(p * 3 - i) * 100}%`); });
+      items.forEach((li, i) => { li.classList.toggle("on", i === idx); li.firstElementChild.style.setProperty("--p", `${clamp(p * N - i) * 100}%`); });
       words.forEach((s, i) => { const d = pos - i; s.style.setProperty("--o", clamp(1 - Math.abs(d) * 1.7, .004).toFixed(3)); s.style.setProperty("--x", `${(-d * 34).toFixed(2)}vw`); });
       const [g, w, h] = fit(c), t = now / 1000, mid = h / 2, small = w < 600;
       g.clearRect(0, 0, w, h);
-      const W = [clamp(1 - pos), clamp(1 - Math.abs(pos - 1)), clamp(pos - 1)];
+      const W = [clamp(1 - pos), clamp(1 - Math.abs(pos - 1)), clamp(1 - Math.abs(pos - 2)), clamp(pos - 2)];
       const ph = small ? 92 : Math.min(236, h * .74), pw = ph * .49, lh = small ? 78 : Math.min(224, h * .68), lw = lh * 1.6;
       const x0 = pw / 2 + 2, x1 = w - lw / 2 - 10, a = x0 + pw / 2 + 12, b = x1 - lw / 2 - 12, L = b - a, amp = Math.min(h * .36, small ? 46 : 112);
-      const y = (u) => mid + Math.sin(u * Math.PI) * (amp * .78 * W[0] + Math.sin(u * 15 - t * 5) * amp * W[1] - amp * .5 * Math.abs(Math.sin(u * Math.PI * 5)) * W[2]);
+      // Far apart, the path arcs up over the internet.
+      const y = (u) => mid + Math.sin(u * Math.PI) * (amp * .78 * W[0] + Math.sin(u * 15 - t * 5) * amp * W[1] - amp * .5 * Math.abs(Math.sin(u * Math.PI * 5)) * W[2] - amp * 1.05 * W[3]);
       if (W[0] + W[1] > .01) {
         g.beginPath();
         for (let i = 0; i <= 140; i++) { const u = i / 140; g.lineTo(a + L * u, y(u)); }
@@ -306,9 +308,20 @@
         g.strokeStyle = `rgba(${W[0] > .5 ? "72,79,87" : LIME},${W[0] > .5 ? 1 : .35 + .4 * W[1]})`; g.stroke();
       }
       if (W[0] > .02) { g.fillStyle = `rgba(150,158,166,${W[0]})`; for (const [x, s] of [[a, 1], [b, -1]]) { g.beginPath(); g.roundRect(x - 8 + s * 2, mid - 8, 16, 16, 4); g.fill(); } }
+      if (W[3] > .02) {
+        g.beginPath();
+        for (let i = 0; i <= 140; i++) { const u = i / 140; g.lineTo(a + L * u, y(u)); }
+        g.setLineDash([2, 9]); g.lineWidth = 2.5; g.lineCap = "round"; g.strokeStyle = `rgba(${LIME},${.55 * W[3]})`; g.stroke(); g.setLineDash([]);
+        // A globe at the top of the arc: the way through, not a stop.
+        const gx = a + L / 2, gy = y(.5), gr = small ? 11 : 17;
+        g.lineWidth = 1.6; g.strokeStyle = `rgba(150,158,166,${W[3]})`; g.fillStyle = `rgba(13,14,16,${W[3]})`;
+        g.beginPath(); g.arc(gx, gy, gr, 0, 7); g.fill(); g.stroke();
+        g.beginPath(); g.ellipse(gx, gy, gr * .45, gr, 0, 0, 7); g.stroke();
+        g.beginPath(); g.moveTo(gx - gr, gy); g.lineTo(gx + gr, gy); g.stroke();
+      }
       if (W[2] > .02) for (let i = 0; i < 42; i++) { const u = (i + .5) / 42; g.beginPath(); g.arc(a + L * u, y(u), 2, 0, 7); g.fillStyle = `rgba(150,158,166,${.5 * W[2]})`; g.fill(); }
       // What travels: steady over the cable, riding the wave, hopping over Bluetooth.
-      const n = small ? 5 : 9, speed = .5 * W[0] + .34 * W[1] + .3 * W[2];
+      const n = small ? 5 : 9, speed = .5 * W[0] + .34 * W[1] + .3 * W[2] + .42 * W[3];
       for (let i = 0; i < n; i++) {
         const u = (i / n + t * speed) % 1, f = Math.sin(u * Math.PI);
         g.beginPath(); g.arc(a + L * u, y(u), (3 + 2.4 * W[2]) * (.5 + .5 * f), 0, 7); g.fillStyle = `rgba(${LIME},${.25 + .75 * f})`; g.fill();

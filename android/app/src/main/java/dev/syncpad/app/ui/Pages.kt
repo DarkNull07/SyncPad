@@ -132,6 +132,16 @@ private fun DeckEditor(hub: Hub, k: DeckKey?, at: Int, count: Int, close: () -> 
 
 @Composable
 fun MorePage(hub: Hub, open: (String) -> Unit) = Page {
+    hub.update?.let { v ->
+        Row(Modifier.fillMaxWidth().tap(R24, color = Accent) { hub.getUpdate() }.padding(18.dp), verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(14.dp)) {
+            Icon(Icons.Rounded.SystemUpdate, null, tint = OnAccent, modifier = Modifier.size(26.dp))
+            Column(Modifier.weight(1f)) {
+                Text("SyncPad $v is out", color = OnAccent, fontSize = 17.sp, fontWeight = FontWeight.SemiBold)
+                Text("Tap to get it from the website", color = OnAccent.copy(alpha = .75f), fontSize = 13.sp)
+            }
+        }
+    }
     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
         Feature("Laptop files", "Browse, preview, save", Icons.Rounded.FolderOpen) { open("browse") }
         Feature("Share", "Send and clipboard", Icons.Rounded.SwapVert) { open("files") }
@@ -297,6 +307,12 @@ fun ConnectPage(shell: Shell) {
         Body(modeNote(hub, hub.mode) + ".", modifier = Modifier.padding(horizontal = 4.dp))
         Body("If the Wi-Fi blocks devices from seeing each other, connect the laptop to this phone's hotspot.",
             modifier = Modifier.padding(horizontal = 4.dp))
+        Card {
+            Toggle("Connect from anywhere", "On another Wi-Fi or mobile data, SyncPad reaches the laptop over the internet. It goes direct when the networks allow, otherwise through a relay that cannot read anything. Pair at home once first.", hub.remote) { hub.remote = it }
+        }
+        if (hub.status.via.startsWith("Internet")) Body(
+            if (hub.status.via.endsWith("relayed")) "Through a relay, so a little slower. It switches to a direct path by itself when it can."
+            else "Direct over the internet. Speed depends on both networks.", modifier = Modifier.padding(horizontal = 4.dp))
         Section("Bluetooth")
         Card {
             val b = hub.hid
@@ -340,6 +356,7 @@ fun SettingsPage(hub: Hub) = Page {
         Toggle("Tap to click", null, hub.tap) { hub.tap = it }
         Toggle("Vibration", null, hub.haptics) { hub.haptics = it }
         Toggle("Volume keys control the laptop", null, hub.volumeKeys) { hub.volumeKeys = it }
+        Toggle("Check for updates", "Asks GitHub for the newest version now and then. Nothing else is sent.", hub.checkUpdates) { hub.checkUpdates = it }
     }
     Section("Gestures")
     Card {

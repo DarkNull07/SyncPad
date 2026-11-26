@@ -104,6 +104,8 @@ class Session:
     @property
     def via(self):
         # Tethering over a cable looks like any network from here; the phone knows better.
+        if self.addr[0] == "127.0.0.2":
+            return "Internet"
         return "USB" if self.addr[0] == "127.0.0.1" or self.cable else "Wi-Fi"
 
     def send(self, **m):
@@ -217,6 +219,8 @@ class Session:
             self.server.open(str(m.get("v", "")), self)
         elif t == "sys":
             self.server.system(str(m.get("a", "")))
+        elif t == "remote":
+            self.server.config.set_remote(self.device_id, m.get("id", ""))
 
     def _record(self):
         show = self.server.on_record
@@ -286,6 +290,13 @@ class Server:
         self.clip = winclip.Watcher(self._clip_changed) if clipboard else None
         self._stop = False
         self._socks = []
+        self.remote = None                   # set by the app: reaching this laptop from other networks
+
+    def remote_ready(self, endpoint):
+        """Phones already connected learn where to find this laptop when away."""
+        if self.config.settings.get("remote", True):
+            for s in self.all_sessions():
+                s.send(t="here", r=endpoint)
 
     # ---- lifecycle
     def start(self):
@@ -443,7 +454,8 @@ class Server:
         for x in old:          # the phone moved to another transport
             x.close()
         s.send(t="welcome", sid=s.sid, name=socket.gethostname(), udp=self.port,
-               h=self.config.host_id.hex(), ips=local_ips())
+               h=self.config.host_id.hex(), ips=local_ips(),
+               r=self.remote.id if self.remote and self.config.settings.get("remote", True) else "")
         for oid, (path, name, size, _) in list(self.offers.items()):
             s.send(t="offer", id=oid, name=name, size=size)
         self.on_change()

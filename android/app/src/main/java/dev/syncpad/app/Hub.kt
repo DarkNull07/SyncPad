@@ -33,11 +33,13 @@ import dev.syncpad.app.net.FsClient
 import dev.syncpad.app.net.HidLink
 import dev.syncpad.app.net.HidPhase
 import dev.syncpad.app.net.HidStatus
+import dev.syncpad.app.net.IrohTunnel
 import dev.syncpad.app.net.Laptop
 import dev.syncpad.app.net.Link
 import dev.syncpad.app.net.Mode
 import dev.syncpad.app.net.Phase
 import dev.syncpad.app.net.Status
+import dev.syncpad.app.net.Updates
 import dev.syncpad.app.net.Wire
 import org.json.JSONArray
 import org.json.JSONObject
@@ -94,6 +96,8 @@ class Hub(private val ctx: Context) : Sink {
     var recording by mutableStateOf(false); private set
     var filesAllowed by mutableStateOf(false); private set
     var recorded by mutableStateOf<List<String>?>(null)
+    /** A newer version on GitHub, if there is one. */
+    var update by mutableStateOf<String?>(null); private set
 
     // ---- how to connect
     private val modeState = mutableStateOf(runCatching { Mode.valueOf(prefs.getString("mode", null)!!) }
@@ -125,6 +129,8 @@ class Hub(private val ctx: Context) : Sink {
     var padHint: Boolean by pref("hint", true)
     var shareFiles: Boolean by pref("phonefiles", false)
     var btSpeed: Float by pref("btspeed", 1f) { hidLink.speed = btSpeed }
+    var checkUpdates: Boolean by pref("updates", true) { if (checkUpdates) checkForUpdate(force = true) else update = null }
+    var remote: Boolean by pref("remote", true) { link.remote = remote; if (remote) link.tellRemote() }
     var toldUnsteady = false
 
     val version: String = runCatching { ctx.packageManager.getPackageInfo(ctx.packageName, 0).versionName }.getOrNull().orEmpty()
@@ -148,12 +154,27 @@ class Hub(private val ctx: Context) : Sink {
     }
 
     // ---- transports
+    /** Reaching the laptop from another network. Null where the native library cannot load (tests). */
+    private val tunnel: IrohTunnel? = runCatching {
+        computer.iroh.IrohAndroid.installAndroidContext(ctx.applicationContext)
+        IrohTunnel(::remoteKey)
+    }.getOrNull()
+
+    /** This phone's identity for that, kept so the laptop keeps recognising it. */
+    private fun remoteKey(): ByteArray {
+        prefs.getString("irohKey", null)?.let { k -> runCatching { return Wire.unhex(k) } }
+        val k = ByteArray(32).also { java.security.SecureRandom().nextBytes(it) }
+        prefs.edit().putString("irohKey", k.joinToString("") { "%02x".format(it) }).apply()
+        return k
+    }
+
     val link = Link(
         model = listOf(Build.MANUFACTURER.replaceFirstChar { it.uppercase() }, Build.MODEL).distinct().joinToString(" "),
         bindTcp = { s, a -> networkFor(a)?.bindSocket(s) },
         bindUdp = { s, a -> networkFor(a)?.bindSocket(s) },
         extraHosts = ::gateways,
         urgent = { Process.setThreadPriority(Process.THREAD_PRIORITY_URGENT_DISPLAY) },
+        tunnel = tunnel,
     )
     val fs = FsClient { link.openChannel(Wire.FILE) }
     val thumbs = FsClient { link.openChannel(Wire.FILE) }       // its own channel, so pictures never hold up browsing
@@ -166,6 +187,9 @@ class Hub(private val ctx: Context) : Sink {
 
     init {
         link.mode = mode
+        link.remote = remote
+        tunnel?.onId = { link.tellRemote() }
+        tunnel?.start()
         link.onStatus = { s -> main.post {
             val joined = s.phase == Phase.CONNECTED && status.phase != Phase.CONNECTED
             status = s
@@ -218,13 +242,38 @@ class Hub(private val ctx: Context) : Sink {
         laptops.firstOrNull { it.hostId == current }?.let { l -> io.execute { link.start(l) } }
         link.nudge()
         if (hidOn || mode == Mode.BT) hidLink.start()
+        checkForUpdate()
+    }
+
+    // ---- updates
+    /** At most every six hours. Asks GitHub only for the newest version number. */
+    fun checkForUpdate(force: Boolean = false) {
+        if (!checkUpdates) return
+        val known = prefs.getString("latest", null)
+        if (known != null && Updates.newer(known, version)) update = known
+        if (!force && System.currentTimeMillis() - prefs.getLong("checked", 0) < 6 * 3600_000L) return
+        prefs.edit().putLong("checked", System.currentTimeMillis()).apply()
+        files.execute {
+            val v = Updates.latest(version) ?: return@execute
+            prefs.edit().putString("latest", v).apply()
+            main.post {
+                val fresh = Updates.newer(v, version)
+                if (fresh && update != v) notice = "SyncPad $v is out. Get it under More."
+                update = if (fresh) v else null
+            }
+        }
+    }
+
+    /** Android installs apps only from the person's own action, so the website hands over the file. */
+    fun getUpdate() = runCatching {
+        ctx.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(Updates.SITE + "/#download")).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
     }
 
     fun background() {
         front = false
         releaseHeld()
         runCatching { wifiLock?.release() }
-        if (transfers.none { it.running }) io.execute { link.stop() }
+        if (transfers.none { it.running }) io.execute { link.stop(); tunnel?.close() }
         hidLink.stop()
     }
 
@@ -233,7 +282,7 @@ class Hub(private val ctx: Context) : Sink {
         val a = JSONArray(prefs.getString("laptops", "[]"))
         List(a.length()) { i ->
             a.getJSONObject(i).let { o ->
-                Laptop(o.getString("h"), o.getString("d"), o.getString("k"), o.getString("n"), o.getInt("p"), Link.strings(o.getJSONArray("a")))
+                Laptop(o.getString("h"), o.getString("d"), o.getString("k"), o.getString("n"), o.getInt("p"), Link.strings(o.getJSONArray("a")), o.optString("r"))
             }
         }
     }.getOrDefault(emptyList())
@@ -241,7 +290,7 @@ class Hub(private val ctx: Context) : Sink {
     private fun store(list: List<Laptop>) {
         laptops = list
         val a = JSONArray()
-        list.forEach { a.put(JSONObject().put("h", it.hostId).put("d", it.deviceId).put("k", it.key).put("n", it.name).put("p", it.port).put("a", JSONArray(it.ips))) }
+        list.forEach { a.put(JSONObject().put("h", it.hostId).put("d", it.deviceId).put("k", it.key).put("n", it.name).put("p", it.port).put("a", JSONArray(it.ips)).put("r", it.remote)) }
         prefs.edit().putString("laptops", a.toString()).apply()
     }
 

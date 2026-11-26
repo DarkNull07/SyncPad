@@ -32,6 +32,7 @@ def build(onefile: bool):
     subprocess.run([sys.executable, "-m", "PyInstaller", "--noconfirm", "--clean", "--windowed", "--noupx", "--onefile" if onefile else "--onedir",
                     "--name", "SyncPad", "--icon", str(HOST / "syncpad.ico"), "--version-file", str(version_file()),
                     "--hidden-import", "pystray._win32", "--hidden-import", "PIL._tkinter_finder", "--exclude-module", "numpy",
+                    "--collect-all", "iroh",                     # its library, for reaching the laptop from other networks
                     "--distpath", str(OUT), "--workpath", str(WORK), "--specpath", str(WORK), str(HOST / "syncpad_host.py")], check=True, cwd=HOST)
 
 
