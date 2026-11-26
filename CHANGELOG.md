@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.3.0, 26 November 2026
+
+- Connect from anywhere: on another Wi-Fi or mobile data, the phone reaches the laptop over the internet, direct when the networks allow.
+- Update checks in both apps. Windows downloads, verifies and installs a new version when you click.
+- The Windows window resizes, and shows everything on one screen when wide or maximised.
+- Releases can be built and published by GitHub Actions from a tag.
+
 ## 0.2.1, 25 November 2026
 
 - Both apps show their version in Settings.
