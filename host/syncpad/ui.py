@@ -500,10 +500,16 @@ class App:
         self._switch(p, w, 92, "Reachable from other networks", lambda: self.config.settings.get("remote", True), self._set_remote)
         self._switch(p, w, 138, "Check for updates", lambda: self.config.settings.get("updates", True), self._set_updates)
         self._switch(p, w, 184, "Start with Windows", autostart_enabled, set_autostart)
-        self.text(p, "Paired phones", size=9, color=DIM).place(x=self.s(4), y=self.s(240))
+        # Internet speed: one line, with its result beside it.
+        self.text(p, "Internet speed", size=11).place(x=self.s(4), y=self.s(238))
+        self.speed_line = self.text(p, self._speed_text(), size=9, color=DIM, cursor="hand2")
+        self.speed_line.config(anchor="e")
+        self.speed_line.place(x=self.s(120), y=self.s(241), width=self.s(w - 124))
+        self.speed_line.bind("<Button-1>", lambda e: self.speed_test())
+        self.text(p, "Paired phones", size=9, color=DIM).place(x=self.s(4), y=self.s(280))
         self.devices = tk.Frame(p, bg=BG)
-        self.devices.place(x=0, y=self.s(262), width=self.s(w), height=self.s(max(52, h - 262 - 30)))
-        self.devices_w, self.devices_rows = w, max(1, (h - 262 - 30) // 52)
+        self.devices.place(x=0, y=self.s(302), width=self.s(w), height=self.s(max(52, h - 302 - 30)))
+        self.devices_w, self.devices_rows = w, max(1, (h - 302 - 30) // 52)
         self.addr = self.text(p, size=9, color=DIM)
         self.addr.place(x=self.s(4), y=self.s(h - 20), width=self.s(w - 8))
         return p
@@ -536,6 +542,30 @@ class App:
         sw.bind("<Button-1>", flip)
         frame(1 if get() else 0)
 
+    def _speed_text(self):
+        st = getattr(self, "speed_state", {})
+        ph = st.get("phase", "")
+        if ph == "ping":
+            return "Measuring ping…"
+        if ph in ("download", "upload"):
+            return f"{ph.capitalize()} {st.get('live', 0):.0f} Mbit/s…"
+        if ph == "failed":
+            return st.get("error", "Failed") + "  Retry"
+        if ph == "done":
+            return f"↓ {st.get('down', 0):.0f}  ↑ {st.get('up', 0):.0f} Mbit/s   {st.get('ping', 0)} ms   Test again"
+        return "Test"
+
+    def speed_test(self):
+        """Measured against Cloudflare's nearest server, like the phone's test."""
+        if getattr(self, "speed_state", {}).get("phase") in ("ping", "download", "upload"):
+            return
+        import threading
+        from .speed import SpeedTest
+        self.speed_state = {"phase": "ping"}
+        t = SpeedTest(lambda st: (setattr(self, "speed_state", dict(st)), self.q.put("speed")))
+        threading.Thread(target=t.run, daemon=True, name="syncpad-speed").start()
+        self.speed_line.config(text=self._speed_text())
+
     def _set_usb(self, on):
         self.config.settings["usb"] = self.usb.enabled = on
         self.config.save()
@@ -563,6 +593,11 @@ class App:
                 m = self.q.get_nowait()
                 if m == "refresh":
                     self.refresh()
+                elif m == "speed":
+                    try:
+                        self.speed_line.config(text=self._speed_text())
+                    except tk.TclError:
+                        pass
                 elif m == "show":
                     self.show()
                 elif m == "quit":

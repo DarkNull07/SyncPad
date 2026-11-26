@@ -80,7 +80,7 @@ enum class Tab(val label: String, val icon: ImageVector) {
     DECK("Deck", Icons.Rounded.GridView), MORE("More", Icons.Rounded.MoreHoriz)
 }
 
-private val Titles = mapOf("remote" to "Media", "files" to "Share", "browse" to "Laptop files", "connect" to "Connection", "settings" to "Settings")
+private val Titles = mapOf("remote" to "Media", "files" to "Share", "browse" to "Laptop files", "connect" to "Connection", "settings" to "Settings", "speed" to "Internet speed")
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
@@ -118,6 +118,7 @@ fun Root(shell: Shell, start: Tab = Tab.PAD, startSub: String? = null) = Theme {
                     "browse" -> FilesPage(hub)
                     "connect" -> ConnectPage(shell)
                     "settings" -> SettingsPage(hub)
+                    "speed" -> SpeedPage(hub)
                     Tab.PAD.name -> PadPage(shell)
                     Tab.AIR.name -> AirPage(shell)
                     Tab.SCREEN.name -> ScreenPage(shell)

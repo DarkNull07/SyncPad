@@ -138,6 +138,11 @@ class IrohTunnel(private val secret: () -> ByteArray) : Link.Tunnel {
                 val buf = ByteArray(65536)
                 val ins = s.getInputStream()
                 runCatching {
+                    // The first bytes say which connection this is: the pointer and keys go first.
+                    val n = runInterruptible { ins.read(buf) }
+                    if (n <= 0) return@runCatching
+                    if (n > 4) runCatching { send.setPriority(PRIORITY[buf[4].toInt()] ?: 0) }
+                    send.writeAll(buf.copyOf(n))
                     while (true) {
                         val n = runInterruptible { ins.read(buf) }
                         if (n < 0) break
@@ -182,6 +187,8 @@ class IrohTunnel(private val secret: () -> ByteArray) : Link.Tunnel {
 
     companion object {
         val ALPN = "syncpad/1".toByteArray()
+        /** Control, screen, file: higher is sent first. */
+        private val PRIORITY = mapOf(1 to 10, 2 to 0, 3 to -10)
         /** Link sees the laptop here. Not 127.0.0.1, which is the USB cable's. */
         const val HERE = "127.0.0.2"
     }

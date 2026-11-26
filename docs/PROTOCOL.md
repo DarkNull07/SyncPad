@@ -17,7 +17,7 @@ All integers are big-endian.
 
 The host shows a link (QR code, or sent over a USB cable with adb):
 
-    syncpad://pair?v=1&h=<hostId hex8>&d=<deviceId hex8>&k=<key hex32>&n=<name>&p=47800&a=<ip,ip,...>
+    syncpad://pair?v=1&h=<hostId hex8>&d=<deviceId hex8>&k=<key hex32>&n=<name>&p=47800&a=<ip,ip,...>&r=<iroh id>
 
 `k` is a fresh 256-bit key. The first successful handshake stores the device on
 the host and the host replaces the link, so a link pairs exactly one phone. It
@@ -105,6 +105,13 @@ After hello: phone sends `{"t":"next","w":maxWidth,"q":quality,"m":monitor}`;
 host answers with one binary frame
 `10 | cursorX u16 | cursorY u16 | width u16 | height u16 | monitors u8 | JPEG`.
 One request, one frame: a slow link lowers the frame rate and never builds delay.
+
+Newer phones add `"v":2,"wait":ms`. The host then answers only once the screen
+changed, or after `wait` ms with an empty picture (width and height 0) that
+just moves the cursor; and the header gains `waited u16`, the ms spent waiting
+for a change, so the phone can tell the network's share of each frame. The
+phone keeps two requests in flight and lowers width and quality when frames
+take long. Through iroh, the control stream is sent before screen and file streams.
 
 ## File channel
 

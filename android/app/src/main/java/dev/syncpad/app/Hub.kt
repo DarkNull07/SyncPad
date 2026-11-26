@@ -38,6 +38,7 @@ import dev.syncpad.app.net.Laptop
 import dev.syncpad.app.net.Link
 import dev.syncpad.app.net.Mode
 import dev.syncpad.app.net.Phase
+import dev.syncpad.app.net.SpeedTest
 import dev.syncpad.app.net.Status
 import dev.syncpad.app.net.Updates
 import dev.syncpad.app.net.Wire
@@ -244,6 +245,17 @@ class Hub(private val ctx: Context) : Sink {
         if (hidOn || mode == Mode.BT) hidLink.start()
         checkForUpdate()
     }
+
+    // ---- internet speed
+    private val speedTest = SpeedTest().also { t -> t.onChange = { s -> main.post { netSpeed = s } } }
+    var netSpeed by mutableStateOf(SpeedTest.State()); private set
+    val testing get() = netSpeed.phase in listOf("ping", "download", "upload")
+
+    fun startSpeedTest() { if (!testing) { netSpeed = SpeedTest.State(phase = "ping"); files.execute { speedTest.run() } } }
+    fun stopSpeedTest() = speedTest.cancel()
+
+    /** Mobile data costs money, so the test says so before it starts. */
+    val onMobileData: Boolean get() = runCatching { cm.getNetworkCapabilities(cm.activeNetwork)?.hasTransport(NetworkCapabilities.TRANSPORT_CELLULAR) == true }.getOrDefault(false)
 
     // ---- updates
     /** At most every six hours. Asks GitHub only for the newest version number. */

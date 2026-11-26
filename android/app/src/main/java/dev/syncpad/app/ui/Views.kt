@@ -218,6 +218,9 @@ class KeyCatcher(context: Context, private val onText: (String) -> Unit, private
 }
 
 /** Live view of the laptop screen. Tap clicks there, hold then drag drags, pinch zooms the view. */
+/** Width and JPEG quality, from sharpest to lightest. */
+private val LEVELS = listOf(1920 to 62, 1600 to 56, 1280 to 50, 1024 to 45, 800 to 40, 640 to 34)
+
 class ScreenView(context: Context, private val hub: Hub, private val haptic: (Int) -> Unit) : View(context) {
     var monitor = 0
     var quality = 60
@@ -251,24 +254,66 @@ class ScreenView(context: Context, private val hub: Hub, private val haptic: (In
         if (dragging) hub.button(0, false)
     }
 
+    // ---- what the link can carry: size and quality follow how long the network takes per frame
+    @Volatile var fps = 0f; private set
+    @Volatile var netMs = -1; private set
+    @Volatile private var lastNew = 0L
+    private var level = 1
+    private var calm = 0
+    private val frames = ArrayDeque<Long>()
+
+    private fun pick(): Pair<Int, Int> {
+        val want = (maxOf(width, height) * zoom).toInt().coerceIn(640, 1920)
+        if (quality >= 80) return want to 85                     // "Sharper picture": as asked, whatever it costs
+        val (w, q) = LEVELS[level]
+        return minOf(want, w) to q
+    }
+
+    /** Over the network's time for a frame (not the time spent waiting for the screen to change). */
+    private fun adapt(ms: Int) {
+        netMs = if (netMs < 0) ms else (netMs * 3 + ms) / 4
+        if (quality >= 80) return
+        if (netMs > 220 && level < LEVELS.size - 1) { level++; netMs = -1; calm = 0 }
+        else if (netMs < 90) { if (++calm >= 12 && level > 0) { level--; calm = 0 } } else calm = 0
+    }
+
     private fun loop() {
+        // On the internet, start small and grow; nearby, start sharp.
+        level = if (hub.status.via.startsWith("Internet")) 3 else 1
         while (alive) {
             val ch = hub.link.openChannel(Wire.SCREEN)
             if (ch == null) { Thread.sleep(700); continue }
             chan = ch
+            val sent = ArrayDeque<Long>()
+            fun ask() {
+                val (w, q) = pick()
+                ch.send(JSONObject().put("t", "next").put("v", 2).put("w", w).put("q", q).put("m", monitor).put("wait", 400).toString().toByteArray())
+                sent.addLast(System.nanoTime())
+            }
             try {
+                // Two requests in flight, so the next frame is already on its way while this one draws.
+                ask(); ask()
                 while (alive) {
-                    val want = (maxOf(width, height) * zoom).toInt().coerceIn(960, 1920)
-                    ch.send(JSONObject().put("t", "next").put("w", want).put("q", quality).put("m", monitor).toString().toByteArray())
                     val d = ch.recv()
-                    if (d.size < 12) continue
-                    val b = ByteBuffer.wrap(d, 1, 9)
+                    val took = ((System.nanoTime() - sent.removeFirst()) / 1_000_000).toInt()
+                    if (d.size < 10) { ask(); continue }
+                    val b = ByteBuffer.wrap(d, 1, d.size - 1)
                     val cx = b.short.toInt() and 0xffff; val cy = b.short.toInt() and 0xffff
-                    b.short; b.short
+                    val fw = b.short.toInt() and 0xffff; b.short
                     val n = b.get().toInt()
+                    val waited = if (d.size >= 12) b.short.toInt() and 0xffff else 0
+                    val at = if (d.size >= 12) 12 else 10
                     if (n != monitors) { monitors = n; post { onMonitors(n) } }
                     cur = floatArrayOf(cx / 65535f, cy / 65535f)
-                    BitmapFactory.decodeByteArray(d, 10, d.size - 10)?.let { bmp = it; postInvalidateOnAnimation() }
+                    ask()
+                    if (fw > 0 && d.size > at) {
+                        adapt(maxOf(1, took - waited))
+                        BitmapFactory.decodeByteArray(d, at, d.size - at)?.let { bmp = it }
+                        val now = System.nanoTime()
+                        lastNew = now
+                        synchronized(frames) { frames.addLast(now); while (frames.size > 1 && now - frames.first() > 1_000_000_000L) frames.removeFirst(); fps = frames.size.toFloat() }
+                    }
+                    postInvalidateOnAnimation()
                 }
             } catch (_: Exception) {
             } finally { ch.close() }
@@ -289,7 +334,20 @@ class ScreenView(context: Context, private val hub: Hub, private val haptic: (In
         c.drawBitmap(b, m, paint)
         val (x, y) = cur
         if (x < 1f || y < 1f) c.drawCircle(fit.left + x * fit.width(), fit.top + y * fit.height(), 7 * resources.displayMetrics.density, ring)
+        // Frames per second and the network's share of each frame, top left.
+        val still = System.nanoTime() - lastNew > 1_200_000_000L
+        val label = (if (still) "Still" else "${fps.toInt()} fps") + if (netMs >= 0) "  ${netMs} ms" else ""
+        val d = resources.displayMetrics.density
+        val w = badgeText.measureText(label) + 20 * d
+        badgeBox.set(10 * d, 10 * d, 10 * d + w, 38 * d)
+        c.drawRoundRect(badgeBox, 14 * d, 14 * d, badge)
+        c.drawText(label, badgeBox.left + 10 * d, badgeBox.centerY() + badgeText.textSize * .35f, badgeText)
+        if (!still) postInvalidateDelayed(500)
     }
+
+    private val badge = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = 0xB30D0E10.toInt() }
+    private val badgeText = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = 0xFFF1F3F2.toInt(); textSize = 12.5f * resources.displayMetrics.scaledDensity; typeface = android.graphics.Typeface.create(android.graphics.Typeface.DEFAULT, android.graphics.Typeface.BOLD); fontFeatureSettings = "tnum" }
+    private val badgeBox = RectF()
 
     private fun layout(b: Bitmap) {
         val s = min(width.toFloat() / b.width, height.toFloat() / b.height) * zoom

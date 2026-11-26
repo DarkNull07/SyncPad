@@ -46,6 +46,7 @@ class Config:
         self.devices = {}   # id -> {"key": bytes, "name": str, "seen": float}
         self.settings = {"usb": True, "clipsync": False, "save_dir": "", "remote": True}
         self._remote_key = None
+        self.remote_id = ""          # set once reachable from other networks; goes into the pairing code
         self._load()
         self.new_pairing()
 
@@ -92,7 +93,7 @@ class Config:
                 self.new_pairing()
             return (f"syncpad://pair?v=1&h={self.host_id.hex()}&d={self.pair_id.hex()}"
                     f"&k={self.pair_key.hex()}&n={quote(socket.gethostname())}&p={port}"
-                    f"&a={','.join(local_ips())}")
+                    f"&a={','.join(local_ips())}" + (f"&r={self.remote_id}" if self.remote_id and self.settings.get("remote", True) else ""))
 
     def key_for(self, device_id: bytes):
         with self.lock:

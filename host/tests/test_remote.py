@@ -154,15 +154,35 @@ def test_paired_phone_reaches_the_laptop_through_iroh(srv):
     assert srv.remote.paths() and srv.remote.paths()[0][1] == "direct"
 
 
-def test_unpaired_endpoint_is_refused(srv):
+def test_unpaired_endpoint_reaches_nothing_but_pairing(srv):
     side = PhoneSide(laptop(srv), srv.remote._loop)
     assert side.ready.wait(10)
     side.dial()
-    # The laptop closes it before anything reaches the server.
-    time.sleep(0.5)
+    # A device id that is not the live pairing code never reaches the server.
     with pytest.raises((OSError, wire.WireError)):
-        Phone(srv.config.pair_link(), side.port, host=HERE)
+        Phone(srv.config.pair_link(), side.port, host=HERE, key=b"x" * 32, device=b"\x01" * 8)
     assert not srv.all_sessions()
+
+
+def test_pairs_from_anywhere_with_the_code(srv):
+    """The code carries the laptop's id, so a phone can pair without ever being at home."""
+    link = srv.config.pair_link()
+    assert f"&r={srv.remote.id}" in link
+    side = PhoneSide(laptop(srv), srv.remote._loop)
+    assert side.ready.wait(10)
+    assert side.dial()
+    away = Phone(link, side.port, host=HERE)          # pairs through the tunnel
+    away.uaddr = (HERE, side.port)
+    away.send(t="remote", id=side.id)
+    away.sync()
+    assert srv.config.remote_allowed(side.id)
+    assert away.uping()[0] == wire.M_UPING              # datagrams flow once it has paired
+    # A stranger with an old or made-up code gets nowhere.
+    other = PhoneSide(laptop(srv), srv.remote._loop)
+    other.ready.wait(10)
+    other.dial()
+    with pytest.raises((OSError, wire.WireError)):
+        Phone(link, other.port, host=HERE)
 
 
 def test_turned_off_means_nobody(srv):

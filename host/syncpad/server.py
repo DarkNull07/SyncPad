@@ -483,18 +483,26 @@ class Server:
         if self._capturer is None:
             self._capturer = Capturer()
         ch.sock.settimeout(30)
+        last = None
         while True:
             m = json.loads(ch.recv())
             if m.get("t") != "next":
                 continue
             w = int(clamp(int(m.get("w", 1280)), 320, 2560))
             q = int(clamp(int(m.get("q", 60)), 20, 90))
+            # Phones that say "wait" accept an unchanged frame: just the cursor, no picture.
+            wait = int(clamp(int(m.get("wait", 0)), 0, 1000))
             try:
-                cx, cy, fw, fh, mons, jpg = self._capturer.frame(w, q, int(m.get("m", 0)))
+                cx, cy, fw, fh, mons, jpg, state, waited = self._capturer.frame(w, q, int(m.get("m", 0)), last if wait else None, wait)
+                last = state
             except OSError:
                 time.sleep(0.5)
-                cx, cy, fw, fh, mons, jpg = 65535, 65535, 0, 0, 1, b""
-            ch.send(struct.pack(">BHHHHB", M_FRAME, cx, cy, fw, fh, mons) + jpg)
+                cx, cy, fw, fh, mons, jpg, last, waited = 65535, 65535, 0, 0, 1, b"", None, 0
+            head = struct.pack(">BHHHHB", M_FRAME, cx, cy, fw, fh, mons)
+            if m.get("v") == 2:
+                # How long it waited for a change, so the phone can tell the network's share of the time.
+                head += struct.pack(">H", min(waited, 65535))
+            ch.send(head + jpg)
 
     # ---- files
     def save_dir(self) -> Path:

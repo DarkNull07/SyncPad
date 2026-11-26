@@ -9,9 +9,9 @@ from syncpad import wire
 
 
 class Phone:
-    def __init__(self, link, port, host="127.0.0.1", kind=wire.KIND_CONTROL, key=None):
+    def __init__(self, link, port, host="127.0.0.1", kind=wire.KIND_CONTROL, key=None, device=None):
         q = {k: v[0] for k, v in parse_qs(urlparse(link).query).items()}
-        self.id, self.key = bytes.fromhex(q["d"]), key or bytes.fromhex(q["k"])
+        self.id, self.key = device or bytes.fromhex(q["d"]), key or bytes.fromhex(q["k"])
         self.sock = socket.create_connection((host, port), 3)
         self.sock.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
         cn = os.urandom(16)

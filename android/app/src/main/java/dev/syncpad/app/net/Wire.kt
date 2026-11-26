@@ -149,7 +149,8 @@ data class Laptop(
             val h = q.getValue("h"); val d = q.getValue("d"); val k = q.getValue("k")
             require(Wire.unhex(h).size == 8 && Wire.unhex(d).size == 8 && Wire.unhex(k).size == 32)
             Laptop(h, d, k, q["n"].orEmpty().ifBlank { "Laptop" }.take(40), q.getValue("p").toInt().also { require(it in 1..65535) },
-                q["a"].orEmpty().split(',').filter { ip -> ip.matches(Regex("""\d{1,3}(\.\d{1,3}){3}""")) }.take(8))
+                q["a"].orEmpty().split(',').filter { ip -> ip.matches(Regex("""\d{1,3}(\.\d{1,3}){3}""")) }.take(8),
+                q["r"].orEmpty().lowercase().takeIf { it.matches(Regex("[0-9a-f]{64}")) }.orEmpty())
         }.getOrNull()
     }
 }

@@ -59,6 +59,7 @@ android {
                 it.systemProperty("syncpad.host", rootDir.resolve("../host").canonicalPath)
                 it.systemProperty("syncpad.shots", rootDir.resolve("app/build/shots").path)
                 it.systemProperty("syncpad.site", project.hasProperty("site").toString())
+                it.systemProperty("syncpad.net", project.hasProperty("net").toString())
                 it.systemProperty("robolectric.graphicsMode", "NATIVE")
                 it.systemProperty("robolectric.pixelCopyRenderMode", "hardware")
                 it.maxHeapSize = "2g"

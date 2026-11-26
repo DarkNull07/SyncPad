@@ -17,6 +17,7 @@ import time
 
 ALPN = b"syncpad/1"
 FROM = "127.0.0.2"          # source address of bridged connections, so the server can say "Internet"
+PRIORITY = {1: 10, 2: 0, 3: -10}      # control, screen, file: higher is sent first
 
 
 def available() -> bool:
@@ -105,6 +106,7 @@ class Remote:
         ep = await f.Endpoint.bind(f.EndpointOptions(preset=f.preset_n0(), alpns=[ALPN], secret_key=self.config.remote_secret()))
         self._ep = ep
         self.id = str(ep.id())
+        self.config.remote_id = self.id
         self.on_ready(self.id)
         self.on_change()
         asyncio.get_running_loop().create_task(self._come_online(ep))
@@ -129,8 +131,11 @@ class Remote:
             return
         peer = str(conn.remote_id())
         if not self.config.remote_allowed(peer):
-            conn.close(1, b"not paired")
-            return
+            # A phone that scanned the code elsewhere has not told us its id yet. It may come in,
+            # but only to pair with the live code, and only a couple at a time.
+            if not self.config.settings.get("remote", True) or sum(not x.trusted() for x in self.links.values()) >= 2:
+                conn.close(1, b"not paired")
+                return
         link = Link(self, conn, peer)
         self.links[conn.stable_id()] = link
         self.on_change()
@@ -152,6 +157,19 @@ class Link:
         self.udp.connect(("127.0.0.1", remote.port))
         self.udp.settimeout(1)
         self.socks = set()
+        self.born = time.time()
+
+    def trusted(self):
+        return self.remote.config.remote_allowed(self.peer)
+
+    def may_open(self, head: bytes) -> bool:
+        """Which SyncPad connection a stream starts. A stranger may only pair, and has a minute to."""
+        if len(head) < 13 or head[:4] != b"SPD1":
+            return False
+        if self.trusted():
+            return True
+        c = self.remote.config
+        return time.time() - self.born < 60 and head[5:13] == c.pair_id and time.time() < c.pair_until
 
     def route(self):
         try:
@@ -180,6 +198,7 @@ class Link:
         loop = asyncio.get_running_loop()
         threading.Thread(target=self._udp_back, daemon=True, name="syncpad-remote-udp").start()
         dg = loop.create_task(self._datagrams())
+        watch = loop.create_task(self._watch())
         try:
             while not self.closed:
                 bi = await self.conn.accept_bi()
@@ -188,7 +207,16 @@ class Link:
             pass
         finally:
             dg.cancel()
+            watch.cancel()
             self.close()
+
+    async def _watch(self):
+        """A stranger that has not paired within a minute is sent away."""
+        while not self.closed:
+            await asyncio.sleep(5)
+            if not self.trusted() and time.time() - self.born > 60:
+                self.close()
+                return
 
     async def _datagrams(self):
         while not self.closed:
@@ -196,6 +224,8 @@ class Link:
                 d = await self.conn.read_datagram()
             except Exception:
                 return
+            if not self.trusted():
+                continue
             try:
                 self.udp.send(d)
             except OSError:
@@ -221,10 +251,21 @@ class Link:
         self.socks.add(s)
         send, recv = bi.send(), bi.recv()
         try:
+            head = b""
+            while len(head) < 13:
+                d = await recv.read(65536)
+                if not d:
+                    return
+                head += d
+            if not self.may_open(head):
+                return
+            # The pointer and keys go first; the screen and files share what is left.
+            await send.set_priority(PRIORITY.get(head[4], 0))
             s.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
             s.bind((FROM, 0))
             s.setblocking(False)
             await loop.sock_connect(s, ("127.0.0.1", self.remote.port))
+            await loop.sock_sendall(s, head)
             back = loop.create_task(self._to_phone(s, send))
             try:
                 while True:

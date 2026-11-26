@@ -151,6 +151,9 @@ fun MorePage(hub: Hub, open: (String) -> Unit) = Page {
         Feature("Gamepad", if (hub.usingBt) "Real controller" else "Sends keyboard keys", Icons.Rounded.SportsEsports) { open("gamepad") }
     }
     Card {
+        RowItem("Internet speed", hub.netSpeed.down?.let { d -> "Last: %.0f down, %.0f up Mbit/s".format(d, hub.netSpeed.up ?: 0.0) } ?: "Download, upload and ping", Icons.Rounded.Speed, onTap = { open("speed") })
+    }
+    Card {
         RowItem("Connection", when { hub.usingBt -> "Bluetooth"; hub.status.phase == Phase.CONNECTED -> "Connected over ${hub.status.via}"; else -> "Wi-Fi, USB and Bluetooth" },
             Icons.Rounded.Cable, onTap = { open("connect") })
         RowItem("Settings", "Pointer, scrolling, gestures", Icons.Rounded.Tune, onTap = { open("settings") })
