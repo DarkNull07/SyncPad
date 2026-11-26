@@ -31,13 +31,14 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 HOST, ANDROID, WEB, OUT = ROOT / "host", ROOT / "android", ROOT / "web", ROOT / "dist" / "release"
+LOCAL = ROOT / "Syncpad executables"
 REPO, SITE = "DarkNull07/SyncPad", "https://syncpad-dark.vercel.app"
 ASSETS = ["SyncPad.exe", "SyncPad.apk", "SyncPad-windows.zip", "SHA256SUMS.txt"]
 SMARTSCREEN = ("The Windows app is not signed with a paid certificate, so SmartScreen may warn. Check the file against SHA256SUMS.txt, "
                "then choose More info, Run anyway.\n")
 # Anything here must never be published. Checked in the source and inside the downloads.
 PRIVATE = re.compile(rb"(?i)@gmail\.|@outlook\.|[A-Z]:\\Users\\(?!Public)[A-Za-z]|gh[pousr]_[A-Za-z0-9]{20}|BEGIN [A-Z ]*PRIVATE KEY")
-NEVER = re.compile(r"(^|/)(Ideas\.txt|\.env.*|.*\.(jks|keystore)|signing\.properties)$|^(\.claude|\.vercel|dist)/")
+NEVER = re.compile(r"(^|/)(Ideas\.txt|\.env.*|.*\.(jks|keystore)|signing\.properties)$|^(\.claude|\.vercel|dist|Syncpad executables)/")
 
 
 def die(msg):
@@ -176,7 +177,15 @@ def build(version, notes):
     run("git", "add", "-A")
     check_tree()
     run("git", "commit", "-m", f"SyncPad {version}", "-m", "\n".join(f"- {n}" for n in notes), "-m", "Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>")
+    keep_local(version)
     print(f"ready: {version}. Nothing is published. Next: tools/release.py {version} --publish")
+
+
+def keep_local(version):
+    """This laptop runs SyncPad from its own folder, one file per version. Older ones are tidied by the app."""
+    LOCAL.mkdir(exist_ok=True)
+    shutil.copy2(OUT / "SyncPad.exe", LOCAL / f"SyncPad v{version}.exe")
+    print(f"  this laptop: {LOCAL.name}/SyncPad v{version}.exe")
 
 
 def bump(version, notes):

@@ -8,6 +8,7 @@ Run from source, it only says that a new version exists.
 import hashlib
 import json
 import os
+import re
 import shutil
 import subprocess
 import sys
@@ -137,6 +138,12 @@ class Updater:
         if self.state != "ready" or not self._staged:
             return False
         exe = Path(sys.executable).resolve()
+        if self.kind == "file" and VERSIONED.fullmatch(exe.name):
+            # "SyncPad v0.3.0.exe" becomes "SyncPad v0.3.1.exe" beside it; the new one tidies the old.
+            new = exe.with_name(f"SyncPad v{self.latest}.exe")
+            shutil.move(str(self._staged), new)
+            subprocess.Popen([str(new)], close_fds=True)
+            return True
         if self.kind == "file":
             old = exe.with_suffix(".old.exe")
             old.unlink(missing_ok=True)
@@ -158,10 +165,39 @@ class Updater:
         return True
 
 
+VERSIONED = re.compile(r"SyncPad v[\d.]+\.exe", re.I)
+
+
 def tidy():
-    """After an update of the one-file exe, the previous copy is left behind once."""
-    if install_kind() == "file":
+    """After an update, the previous copy is removed and shortcuts point at this one."""
+    if install_kind() != "file":
+        return
+    exe = Path(sys.executable).resolve()
+    old = [exe.with_suffix(".old.exe")]
+    if VERSIONED.fullmatch(exe.name):
+        old += [p for p in exe.parent.glob("SyncPad v*.exe") if p != exe and VERSIONED.fullmatch(p.name)
+                and parse(p.stem.split(" v")[-1]) < parse(exe.stem.split(" v")[-1])]
+    moved = False
+    for p in old:
         try:
-            Path(sys.executable).resolve().with_suffix(".old.exe").unlink(missing_ok=True)
+            if p.exists():
+                p.unlink()
+                moved = True
         except OSError:
             pass               # still closing; next time
+    if moved:
+        repoint(exe)
+
+
+def repoint(exe: Path):
+    """The Start menu shortcut follows the app to its new file name."""
+    lnk = Path(os.environ.get("APPDATA", "")) / "Microsoft/Windows/Start Menu/Programs/SyncPad.lnk"
+    if not lnk.exists():
+        return
+    ps = (f"$s=(New-Object -ComObject WScript.Shell).CreateShortcut('{lnk}');"
+          f"$s.TargetPath='{exe}';$s.WorkingDirectory='{exe.parent}';$s.Save()")
+    try:
+        subprocess.run([tool("powershell.exe"), "-NoProfile", "-NonInteractive", "-Command", ps], timeout=20,
+                       creationflags=0x08000000, stdin=subprocess.DEVNULL, capture_output=True)
+    except (OSError, subprocess.SubprocessError):
+        pass

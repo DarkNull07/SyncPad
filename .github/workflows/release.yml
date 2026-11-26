@@ -6,7 +6,10 @@
 # builds and signs SyncPad.exe, SyncPad.apk and the zip, checks them for private
 # text, creates the GitHub release and updates the website's downloads.
 #
-# Secrets (Settings, Secrets and variables, Actions):
+# It is off until the repository variable CI_RELEASES is set to true (Settings, Secrets and
+# variables, Actions, Variables), so tags pushed by tools/release.py on a computer do not run it.
+#
+# Secrets (same page):
 #   SYNCPAD_KEYSTORE      the APK signing key, base64
 #   SYNCPAD_KEY_ALIAS     its alias
 #   SYNCPAD_KEY_PASSWORD  its password
@@ -32,6 +35,7 @@ concurrency:
 
 jobs:
   release:
+    if: ${{ vars.CI_RELEASES == 'true' || github.event_name == 'workflow_dispatch' }}
     runs-on: windows-latest
     timeout-minutes: 60
     env:

@@ -144,6 +144,8 @@ class App:
         server.on_record = lambda on: self.q.put(("record", on))
         server.on_alert = lambda s: self.q.put(("alert", s))
         tidy()
+        if autostart_enabled():
+            set_autostart(True)              # follows the app if it moved or was updated
         self.updater = Updater(__version__, lambda: self.q.put("refresh"), lambda: self.config.settings.get("updates", True)).start()
         self.root = r = tk.Tk()
         r.withdraw()

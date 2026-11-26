@@ -1,5 +1,6 @@
-# Built apps
+# Built apps, and the copy this laptop runs
 dist/
+Syncpad executables/
 
 # Python
 .venv/

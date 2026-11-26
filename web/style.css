@@ -215,6 +215,9 @@ details p { padding: 0 0 14px; color: #c3c9cc; max-width: 62ch; }
 .faq summary { padding: 20px 0; font-size: 1.1em; }
 footer { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 12px 32px; padding: 34px var(--gut) 110px; color: var(--dim); font-size: .88em; }
 footer a { margin-right: 22px; }
+footer .made { width: 100%; color: var(--ink); font-size: 1.25em; font-weight: 560; letter-spacing: -.01em; margin-top: -8px; }
+footer .made::before { content: ""; display: inline-block; vertical-align: .12em; margin-right: 12px; width: 9px; height: 9px; border-radius: 50%; background: var(--lime); box-shadow: 0 0 18px rgb(var(--rgb) / .7); }
+footer .made a { margin: 0; text-decoration-color: var(--lime); }
 footer .mark { width: 100%; font-size: 25.5vw; font-weight: 680; letter-spacing: -.065em; line-height: .8; margin: 0 0 calc(30px + 3.6vw) -.05em; color: #17191c; user-select: none; }
 .nav .opt.on { color: var(--ink); background: rgb(255 255 255 / .09); }
 
