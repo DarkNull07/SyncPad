@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.3.1, 26 November 2026
+
+- The website says who made it.
+- On a laptop, an app named by version updates to the next version's name and keeps its shortcuts.
+- The release workflow stays off until it is turned on, so it no longer reports failures.
+
 ## 0.3.0, 26 November 2026
 
 - Connect from anywhere: on another Wi-Fi or mobile data, the phone reaches the laptop over the internet, direct when the networks allow.
