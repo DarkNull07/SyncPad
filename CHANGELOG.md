@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.4.0, 26 November 2026
+
+- The laptop's screen over mobile data: a picture only when something changed, sized to what the network can carry.
+- Pointer and keys go ahead of screen and file data across the internet.
+- The Screen tab shows frames per second and the network's time per frame.
+- The pairing code carries the laptop's internet address, so a phone can pair from anywhere.
+- Internet speed test on the phone and the laptop.
+
 ## 0.3.1, 26 November 2026
 
 - The website says who made it.

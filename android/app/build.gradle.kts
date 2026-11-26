@@ -27,8 +27,8 @@ android {
         applicationId = "dev.syncpad.app"
         minSdk = 28
         targetSdk = 36
-        versionCode = 5
-        versionName = "0.3.1"
+        versionCode = 6
+        versionName = "0.4.0"
     }
     buildTypes {
         release {
